@@ -21,7 +21,7 @@ A named scoring region on the Board (e.g. T20, S5, D16, outer bull, inner bull) 
 _Avoid_: Slice, bed, field, zone
 
 **Manual Override**:
-A player correction of a Hit’s Segment that is sent to the Detection backend so both UI and backend share the corrected Hit, and that counts against Detection Accuracy. v1: live Turn strip only (Autodarts).
+A player correction of a Hit’s Segment applied in this UI for the open Turn (Board strip, Training Game scoring, Detection Accuracy). v1 does not write the correction to Winmau Autodarts Detection.
 _Avoid_: Score fix, edit, patch (as product terms)
 
 **Detection Accuracy**:
@@ -39,3 +39,7 @@ _Avoid_: Mode, match, leg (unless a future game truly is match play)
 **101**:
 The first Training Game: start at remaining score 101; clear it in at most two Turns (six darts) finishing on a double (Inner Bull counts); on success advance to 102, then 103, … up to 170 (170 clear ends the run). A failed clear keeps the same target. A bust restarts the attempt immediately with a fresh six darts at that same target.
 _Avoid_: X01 (too generic), checkout trainer (unless referring to the drill informally)
+
+**Checkout Route**:
+The suggested sequence of up to three Segments to throw next for the current remaining score (e.g. T20 → 25 → D18). Shown in the three Hit boxes whenever a route exists; updates as Hits land and remaining score changes.
+_Avoid_: Hint, tip, obstacle path

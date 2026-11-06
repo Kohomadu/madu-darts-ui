@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { parseState, parseWsMessage } from "./parse";
+import { parseState, parseWsMessage, type Hit } from "./parse";
 import { connectingView, reducePractice, type PracticeView } from "./view";
 
 export function useAutodarts(baseUrl: string): {
   view: PracticeView;
   error: string | null;
-  applyServerState: (body: unknown) => void;
+  applyLocalOverride: (index: number, hit: Hit) => void;
 } {
   const [view, setView] = useState<PracticeView>(connectingView);
   const [error, setError] = useState<string | null>(null);
   const wsOpen = useRef(false);
-  const applyRef = useRef<(body: unknown) => void>(() => {});
 
   useEffect(() => {
     const ac = new AbortController();
@@ -49,13 +48,6 @@ export function useAutodarts(baseUrl: string): {
         return;
       }
       showSnap(snap, via);
-    };
-
-    applyRef.current = (body: unknown) => {
-      if (stopped) return;
-      const snap = parseState(body) ?? parseWsMessage(body);
-      if (!snap) return;
-      showSnap(snap);
     };
 
     const pull = async () => {
@@ -169,8 +161,8 @@ export function useAutodarts(baseUrl: string): {
   return {
     view,
     error,
-    applyServerState(body: unknown) {
-      applyRef.current(body);
+    applyLocalOverride(index, hit) {
+      setView((current) => reducePractice(current, { type: "local-override", index, hit }));
     },
   };
 }

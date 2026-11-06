@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { resolveLocalOverride, segmentOverride } from "./override";
 import { canonicalSegment } from "./segment";
-import { overridePath } from "./override";
+
+const previous = {
+  segmentName: "S18",
+  segmentNumber: 18,
+  multiplier: 1,
+  bed: "SingleOuter",
+  coordsX: 0.4,
+  coordsY: 0.7,
+};
 
 describe("Segment names", () => {
   it("accepts the Autodarts labels used on the strip", () => {
@@ -20,8 +29,22 @@ describe("Segment names", () => {
   });
 });
 
-describe("Manual Override request", () => {
-  it("patches the live Turn strip by index", () => {
-    expect(overridePath(1)).toBe("/api/state/hits/1");
+describe("local Manual Override", () => {
+  it("builds a Segment override without calling Autodarts", () => {
+    expect(segmentOverride("t20")).toEqual({ segmentName: "T20" });
+    expect(resolveLocalOverride({ segmentName: "T20" }, previous)).toMatchObject({
+      segmentName: "T20",
+      segmentNumber: 20,
+      multiplier: 3,
+      bed: "Triple",
+      coordsX: 0.4,
+      coordsY: 0.7,
+    });
+  });
+
+  it("maps a Board pick near treble 20", () => {
+    const hit = resolveLocalOverride({ xMm: 0, yMm: 102 }, previous);
+    expect(hit?.segmentName).toBe("T20");
+    expect(hit?.multiplier).toBe(3);
   });
 });

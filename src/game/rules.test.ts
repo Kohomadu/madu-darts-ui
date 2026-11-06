@@ -69,6 +69,24 @@ describe("101 scoring", () => {
     expect(project(state)).toMatchObject({ busted: false, remaining: 40, turnsLeft: 2, dartsLeft: 4 });
   });
 
+  it("recalculates remaining after a Manual Override and checks out on the finishing double", () => {
+    let state = strip(started(), ["T20", "S1", "S20"]);
+    expect(project(state)).toMatchObject({ remaining: 20, busted: false });
+    state = strip(state, ["T20", "S1", "D20"]);
+    expect(project(state)).toMatchObject({ remaining: 0, busted: false, target: 101 });
+    state = takeout(state);
+    expect(project(state)).toMatchObject({ target: 102, remaining: 102, turnsLeft: 2, dartsLeft: 6 });
+  });
+
+  it("checks out when fixing an earlier dart while the last dart was already the finishing double", () => {
+    let state = strip(started(), ["T20", "S20", "D20"]);
+    expect(project(state).busted).toBe(true);
+    state = strip(state, ["T20", "S1", "D20"]);
+    expect(project(state)).toMatchObject({ remaining: 0, busted: false, target: 101 });
+    state = takeout(state);
+    expect(project(state).target).toBe(102);
+  });
+
   it("uses a short Turn and retries the same target after two Turns", () => {
     let state = takeout(strip(started(), ["T20"]));
     expect(project(state)).toMatchObject({ remaining: 41, turnsLeft: 1, dartsLeft: 3, target: 101 });

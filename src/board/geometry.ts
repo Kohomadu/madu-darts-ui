@@ -74,3 +74,76 @@ export function hitMarker(hit: Hit): { x: number; y: number } | null {
 export function svgPointToBoardMm(x: number, y: number): { xMm: number; yMm: number } {
   return { xMm: x, yMm: -y };
 }
+
+function sectorNumber(xMm: number, yMm: number): number {
+  let deg = (Math.atan2(xMm, yMm) * 180) / Math.PI;
+  if (deg < 0) deg += 360;
+  return SECTORS[Math.floor((deg + 9) / 18) % 20];
+}
+
+/** Map a Board-mm pick to a Hit for local Manual Override (no detection round-trip). */
+export function pointMmToHit(xMm: number, yMm: number): Hit | null {
+  const r = Math.hypot(xMm, yMm);
+  const coordsX = xMm / COORDS_NORM_RADIUS_MM;
+  const coordsY = yMm / COORDS_NORM_RADIUS_MM;
+  if (r > RADII.do) {
+    return {
+      segmentName: "Miss",
+      segmentNumber: 0,
+      multiplier: 0,
+      bed: "Outside",
+      coordsX,
+      coordsY,
+    };
+  }
+  if (r <= RADII.ib) {
+    return {
+      segmentName: "Bull",
+      segmentNumber: 25,
+      multiplier: 2,
+      bed: "DoubleBull",
+      coordsX,
+      coordsY,
+    };
+  }
+  if (r <= RADII.ob) {
+    return {
+      segmentName: "25",
+      segmentNumber: 25,
+      multiplier: 1,
+      bed: "SingleBull",
+      coordsX,
+      coordsY,
+    };
+  }
+  const number = sectorNumber(xMm, yMm);
+  if (r >= RADII.ti && r <= RADII.to) {
+    return {
+      segmentName: `T${number}`,
+      segmentNumber: number,
+      multiplier: 3,
+      bed: "Triple",
+      coordsX,
+      coordsY,
+    };
+  }
+  if (r >= RADII.di && r <= RADII.do) {
+    return {
+      segmentName: `D${number}`,
+      segmentNumber: number,
+      multiplier: 2,
+      bed: "Double",
+      coordsX,
+      coordsY,
+    };
+  }
+  const bed = r < RADII.ti ? "SingleInner" : "SingleOuter";
+  return {
+    segmentName: `S${number}`,
+    segmentNumber: number,
+    multiplier: 1,
+    bed,
+    coordsX,
+    coordsY,
+  };
+}

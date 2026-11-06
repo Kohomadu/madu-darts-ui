@@ -168,6 +168,44 @@ describe("connection", () => {
     expect(polling.phase).toBe("polling");
     expect(polling.hits.map((hit) => hit.segmentName)).toEqual(["S18", "S20", "S14"]);
   });
+
+  it("keeps a local Manual Override across later Autodarts snapshots", () => {
+    const live = reducePractice(connectingView(), {
+      type: "snapshot",
+      snapshot: parseState(LIVE_STATE)!,
+      via: "live",
+    });
+    const overridden = reducePractice(live, {
+      type: "local-override",
+      index: 0,
+      hit: {
+        segmentName: "T20",
+        segmentNumber: 20,
+        multiplier: 3,
+        bed: "Triple",
+        coordsX: 0,
+        coordsY: 0.5,
+      },
+    });
+    expect(overridden.hits[0]?.segmentName).toBe("T20");
+    expect(overridden.streamHits[0]?.segmentName).toBe("S18");
+
+    const again = reducePractice(overridden, {
+      type: "snapshot",
+      snapshot: parseState(LIVE_STATE)!,
+      via: "live",
+    });
+    expect(again.hits[0]?.segmentName).toBe("T20");
+    expect(again.hits.map((hit) => hit.segmentName)).toEqual(["T20", "S20", "S14"]);
+
+    const cleared = reducePractice(again, {
+      type: "snapshot",
+      snapshot: parseState({ status: "throw", event: "takeoutFinished" })!,
+      via: "live",
+    });
+    expect(cleared.hits).toEqual([]);
+    expect(cleared.localOverrides).toEqual({});
+  });
 });
 
 describe("Autodarts URL", () => {
