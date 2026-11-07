@@ -15,6 +15,6 @@
 
 ## Comments
 
-The Hit thump is a shorter, brighter click (same 22050 Hz mono file, about 90 ms). A double that lands remaining on zero plays the win sting on that dart and shows “Checkout!” for three seconds. A bust, and a takeout that ends two Turns without a checkout, play the fail cue and show “Try again” for three seconds. Takeout of a checkout that already landed is only the takeout chime. Mute silences the cues; the overlays still appear. A Manual Override only triggers an overlay when it is the dart that creates the checkout or the miss.
+The Hit thump is a low kick with a short reverb tail, trimmed where the tail falls silent (about 1.2 s). A double that lands remaining on zero plays the win sting on that dart and shows “Checkout!” for three seconds. A bust, and a takeout that ends two Turns without a checkout, play the fail cue and show “Try again” for three seconds. Takeout of a checkout that already landed is only the takeout chime. Mute silences the cues; the overlays still appear. A Manual Override only triggers an overlay when it is the dart that creates the checkout or the miss.
 
 Checked in the browser against a local stand-in (port 3180 was not up). On 101, T20 S1 D20 showed “Checkout!” and played the win sting. T20 T20 showed “Try again”. Two Turns of S1 S1 S1, then takeout, showed “Try again” once. With Mute on, the same bust still showed “Try again” and played no cue. Sound was turned back on and Detection Accuracy reset. The shell is pointed back at `http://127.0.0.1:3180`.
