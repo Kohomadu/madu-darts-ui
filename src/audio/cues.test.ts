@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Hit } from "../autodarts/parse";
 import { idleGame, reduceGame, type GameState } from "../game/rules";
-import { audibleCues, planCues, type Observation } from "./cues";
+import { audibleCues, planCues, planMoment, type Observation } from "./cues";
 
 function hit(segmentName: string, coordsX: number): Hit {
   return { segmentName, segmentNumber: null, multiplier: null, bed: null, coordsX, coordsY: 0 };
@@ -58,16 +58,17 @@ describe("practice cues", () => {
     expect(planCues(thrown, clearedWithoutTakeout)).toEqual([]);
   });
 
-  it("plays win once when the current 101 target is cleared", () => {
-    const before = strip(playing(), ["T20", "S1", "D20"]);
-    const after = strip(before, []);
-    const thrown = frame(
-      [hit("T20", 0), hit("S1", 1), hit("D20", 2)],
-      before,
-    );
+  it("plays the checkout cue when the finishing double lands, and only a chime when those darts leave", () => {
+    const started = playing();
+    const open = strip(started, ["T20", "S1"]);
+    const checkout = strip(open, ["T20", "S1", "D20"]);
+    const after = strip(checkout, []);
+    const before = frame([hit("T20", 0), hit("S1", 1)], open);
+    const finishing = frame([hit("T20", 0), hit("S1", 1), hit("D20", 2)], checkout);
     const taken = frame([], after, { event: "takeoutFinished" });
 
-    expect(planCues(thrown, taken)).toEqual(["win", "chime"]);
+    expect(planMoment(before, finishing)).toEqual({ cues: ["thump", "win"], overlay: "checkout" });
+    expect(planMoment(finishing, taken)).toEqual({ cues: ["chime"], overlay: null });
     expect(planCues(taken, frame([hit("S1", 0)], after))).toEqual(["thump"]);
   });
 
@@ -80,7 +81,7 @@ describe("practice cues", () => {
     const busted = frame([hit("T20", 0), hit("T20", 1)], bust);
     const removed = frame([], confirmed, { event: "takeoutFinished" });
 
-    expect(planCues(live, busted)).toEqual(["thump", "fail"]);
+    expect(planMoment(live, busted)).toEqual({ cues: ["thump", "fail"], overlay: "try-again" });
     expect(planCues(busted, removed)).toEqual(["chime"]);
   });
 
@@ -97,21 +98,24 @@ describe("practice cues", () => {
     const taken = frame([], failed, { event: "takeoutFinished" });
 
     expect(beforeSecond.target).toBe(101);
-    expect(planCues(thrown, taken)).toEqual(["fail", "chime"]);
+    expect(planMoment(thrown, taken)).toEqual({ cues: ["fail", "chime"], overlay: "try-again" });
     expect(planCues(taken, frame([], failed, { event: "throw" }))).toEqual([]);
   });
 
-  it("plays win when 170 is cleared and does not cue while disconnected", () => {
+  it("plays the checkout cue when Inner Bull finishes 170", () => {
     let state = playing();
     state = { ...state, target: 170 };
-    const checkout = strip(state, ["T20", "T20", "Bull"]);
+    const open = strip(state, ["T20", "T20"]);
+    const checkout = strip(open, ["T20", "T20", "Bull"]);
     const done = strip(checkout, []);
-    const thrown = frame([hit("T20", 0), hit("T20", 1), hit("Bull", 2)], checkout);
+    const before = frame([hit("T20", 0), hit("T20", 1)], open);
+    const finishing = frame([hit("T20", 0), hit("T20", 1), hit("Bull", 2)], checkout);
     const taken = frame([], done, { event: "takeoutFinished" });
     const dropped = frame([hit("S1", 0)], done, { connected: false });
 
     expect(done.phase).toBe("complete");
-    expect(planCues(thrown, taken)).toEqual(["win", "chime"]);
+    expect(planMoment(before, finishing)).toEqual({ cues: ["thump", "win"], overlay: "checkout" });
+    expect(planCues(finishing, taken)).toEqual(["chime"]);
     expect(planCues(taken, dropped)).toEqual([]);
     expect(planCues(dropped, frame([hit("S1", 0), hit("S5", 1)], done))).toEqual([]);
   });
@@ -123,5 +127,29 @@ describe("practice cues", () => {
     const restored = frame([hit("T20", 0), hit("T20", 1), hit("T20", 2)], busted);
     expect(planCues(empty, restored)).toEqual(["thump", "thump", "thump", "fail"]);
     expect(audibleCues(empty, restored, true)).toEqual([]);
+  });
+
+  it("celebrates a free-practice double that lands on zero, including an Override that creates it", () => {
+    const idle = idleGame();
+    const setup = ["T20", "T20", "T20", "T20", "T20", "T20", "T20", "T19", "S4"];
+    const openHits = setup.map((name, index) => hit(name, index));
+    const open = frame(openHits, idle);
+    const finishing = frame([...openHits, hit("D10", openHits.length)], idle);
+    expect(planMoment(open, finishing)).toEqual({ cues: ["thump", "win"], overlay: "checkout" });
+
+    const corrected = frame([...openHits.slice(0, -1), hit("D12", openHits.length - 1)], idle);
+    expect(planMoment(open, corrected)).toEqual({ cues: ["win"], overlay: "checkout" });
+    expect(planMoment(finishing, frame([...openHits, hit("S5", openHits.length)], idle))).toEqual({
+      cues: [],
+      overlay: null,
+    });
+  });
+
+  it("does not overlay a Manual Override that leaves the attempt open", () => {
+    const started = playing();
+    const open = strip(started, ["T20"]);
+    const before = frame([hit("T20", 0)], open);
+    const overridden = frame([hit("T19", 0.4)], strip(started, ["T19"]));
+    expect(planMoment(before, overridden)).toEqual({ cues: [], overlay: null });
   });
 });

@@ -100,6 +100,31 @@ body {
   margin: 0;
 }
 
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.status-strip button:not(.text) {
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: 16px;
+}
+
+.status-strip button.gear {
+  min-width: 44px;
+  padding-inline: 10px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.settings {
+  width: 100%;
+  margin: 0;
+}
+
 h1 { margin: 0; }
 
 .conn, .pause-copy { margin: 0; }
@@ -218,8 +243,8 @@ button {
 }
 
 .chrome > button {
-  min-height: 56px;
-  padding: 12px 18px;
+  min-height: 64px;
+  padding: 14px 18px;
   font-size: 20px;
 }
 
@@ -404,3 +429,23 @@ button.cta {
 }
 
 .pause-copy.quiet { color: var(--muted); }
+
+.outcome {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 24px;
+  pointer-events: none;
+  background: rgba(6, 8, 10, 0.62);
+  font-size: clamp(72px, 14vw, 160px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 0.95;
+}
+
+.outcome.checkout { color: #f0a14a; }
+.outcome.try-again { color: var(--fail); }

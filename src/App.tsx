@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { readMuted, writeMuted } from "./audio/mute";
+import { setCuesMuted, unlockAudio } from "./audio/play";
 import { useAccuracy } from "./accuracy/useAccuracy";
 import {
   AUTODARTS_BASE_URL_KEY,
@@ -16,6 +18,7 @@ import { scoreSegment } from "./game/rules";
 import { canUndoTurn, useGame } from "./game/useGame";
 import { SegmentPad } from "./override/SegmentPad";
 import { presenceLabel, recoveryCopy, shellPresence } from "./shell/presence";
+import { useWakeLock } from "./shell/wakeLock";
 
 function loadBaseUrl(): string {
   try {
@@ -51,10 +54,19 @@ export function App() {
   const [overrideError, setOverrideError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
   const [boardNote, setBoardNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [muted, setMuted] = useState(() => {
+    const saved = readMuted(localStorage);
+    setCuesMuted(saved);
+    return saved;
+  });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
+  const [flash, setFlash] = useState<{ id: number; kind: "checkout" | "try-again" } | null>(null);
   const { view, error, applyLocalOverride, restoreTurn, finishReview, holdEmpty, releaseHold } = useAutodarts(baseUrl);
   const accuracy = useAccuracy(view);
   const game = useGame(view);
   const live = view.phase === "live" || view.phase === "polling";
+  useWakeLock(live);
   const disconnected = view.phase === "disconnected";
   const reviewing = view.reviewHits != null;
   const canUndo = canUndoTurn({
@@ -85,6 +97,42 @@ export function App() {
     const timer = window.setTimeout(() => setBoardNote(null), 2500);
     return () => window.clearTimeout(timer);
   }, [boardNote]);
+
+  useEffect(() => {
+    setCuesMuted(muted);
+  }, [muted]);
+
+  useEffect(() => {
+    const sync = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!game.moment) return;
+    setFlash(game.moment);
+    const timer = window.setTimeout(() => {
+      setFlash((current) => (current?.id === game.moment?.id ? null : current));
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [game.moment]);
+
+  function toggleMute() {
+    const next = !muted;
+    if (!next) unlockAudio();
+    setCuesMuted(next);
+    writeMuted(localStorage, next);
+    setMuted(next);
+  }
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      // The browser refused fullscreen. The button stays available.
+    }
+  }
 
   function commitSegment(segmentName: string) {
     if (pickIndex == null || !live) return;
@@ -171,7 +219,54 @@ export function App() {
         <button type="button" className="text" onClick={() => accuracy.reset()}>
           Reset
         </button>
+        <span className="status-actions">
+          <button type="button" aria-pressed={muted} onClick={toggleMute}>
+            {muted ? "Unmute" : "Mute"}
+          </button>
+          <button type="button" aria-pressed={fullscreen} onClick={() => void toggleFullscreen()}>
+            {fullscreen ? "Exit full screen" : "Full screen"}
+          </button>
+          <button
+            type="button"
+            className="gear"
+            aria-expanded={settingsOpen}
+            aria-label="Settings"
+            onClick={() => setSettingsOpen((open) => !open)}
+          >
+            ⚙
+          </button>
+        </span>
       </p>
+      {settingsOpen ? (
+        <form
+          className="url settings"
+          onSubmit={(event) => {
+            event.preventDefault();
+            try {
+              const next = normalizeBaseUrl(draft);
+              localStorage.setItem(AUTODARTS_BASE_URL_KEY, next);
+              setDraft(next);
+              setUrlError(null);
+              setBaseUrl(next);
+            } catch (err: unknown) {
+              setUrlError(err instanceof Error ? err.message : "That Autodarts URL is not valid");
+            }
+          }}
+        >
+          <label>
+            Autodarts
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              spellCheck={false}
+              inputMode="url"
+              aria-label="Autodarts Detection URL"
+            />
+          </label>
+          <button type="submit">Connect</button>
+        </form>
+      ) : null}
+      {urlError ? <p className="banner warn">{urlError}</p> : null}
       <header className="score">
         <p className="level">
           {level}
@@ -186,9 +281,12 @@ export function App() {
             <span key={index} className={index < view.hits.length ? "pip on" : "pip"} />
           ))}
         </div>
-        {game.phase === "playing" ? (
+        {game.phase === "playing" || game.phase === "complete" ? (
           <p className="secondary">
-            {countLabel(game.turnsLeft, "turn", "turns")} · {countLabel(game.dartsLeft, "dart", "darts")} left
+            {game.phase === "playing"
+              ? `${countLabel(game.turnsLeft, "turn", "turns")} · ${countLabel(game.dartsLeft, "dart", "darts")} left · `
+              : null}
+            {countLabel(game.checkouts, "checkout", "checkouts")} · high {game.highTarget}
           </p>
         ) : null}
       </header>
@@ -222,12 +320,16 @@ export function App() {
       ) : null}
       {overrideError ? <p className="pause-copy warn">{overrideError}</p> : null}
       <Board hits={view.hits} paused={disconnected} />
-      {urlError ? <p className="banner warn">{urlError}</p> : null}
       {disconnected && error ? <p className="pause-copy">{error}. The Turn is paused.</p> : null}
       {boardNote ? (
         <p className={boardNote.ok ? "pause-copy" : "pause-copy warn"} role="status">
           {boardNote.text}
         </p>
+      ) : null}
+      {flash ? (
+        <div className={`outcome ${flash.kind}`} role="status">
+          {flash.kind === "checkout" ? "Checkout!" : "Try again"}
+        </div>
       ) : null}
       <footer className="chrome">
         {canUndo ? (
@@ -253,36 +355,11 @@ export function App() {
         <button type="button" className="cta" onClick={() => game.start()}>
           Start 101
         </button>
-        <details>
-          <summary>Connect</summary>
-          <form
-            className="url"
-            onSubmit={(event) => {
-              event.preventDefault();
-              try {
-                const next = normalizeBaseUrl(draft);
-                localStorage.setItem(AUTODARTS_BASE_URL_KEY, next);
-                setDraft(next);
-                setUrlError(null);
-                setBaseUrl(next);
-              } catch (err: unknown) {
-                setUrlError(err instanceof Error ? err.message : "That Autodarts URL is not valid");
-              }
-            }}
-          >
-            <label>
-              Autodarts
-              <input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                spellCheck={false}
-                inputMode="url"
-                aria-label="Autodarts Detection URL"
-              />
-            </label>
-            <button type="submit">Connect</button>
-          </form>
-        </details>
+        {game.phase !== "idle" ? (
+          <button type="button" onClick={() => game.abort()}>
+            Abort
+          </button>
+        ) : null}
       </footer>
     </div>
   );

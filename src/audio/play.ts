@@ -9,21 +9,31 @@ const sources: Record<Cue, string> = {
 
 let armed = false;
 let listening = false;
+let muted = false;
 
 function arm(): void {
   armed = true;
+}
+
+/** The unmute click is the gesture that satisfies autoplay, when one is still required. */
+export function unlockAudio(): void {
+  arm();
+}
+
+export function setCuesMuted(next: boolean): void {
+  muted = next;
 }
 
 /** Browser autoplay policy: stay silent until a click or key, then remember it. */
 export function installAudioUnlock(): void {
   if (listening || typeof window === "undefined") return;
   listening = true;
-  window.addEventListener("pointerdown", arm);
+  window.addEventListener("pointerdown", unlockAudio);
   window.addEventListener("keydown", arm);
 }
 
 export function playCue(cue: Cue): void {
-  if (!armed || typeof Audio === "undefined") return;
+  if (muted || !armed || typeof Audio === "undefined") return;
   const audio = new Audio(sources[cue]);
   void audio.play().catch(() => {});
 }

@@ -129,4 +129,12 @@ describe("101 scoring", () => {
     const at170: GameState = { phase: "playing", target: 170, sealed: [], live: [], bustKey: null };
     expect(project(reduceGame(at170, { type: "skip" })).phase).toBe("complete");
   });
+
+  it("aborts the run back to free practice without adding Hits", () => {
+    const live = strip(started(), ["T20", "T19"]);
+    expect(reduceGame(live, { type: "abort" })).toEqual(idleGame());
+    expect(reduceGame({ phase: "complete", target: 170, sealed: [], live: [], bustKey: null }, { type: "abort" })).toEqual(
+      idleGame(),
+    );
+  });
 });

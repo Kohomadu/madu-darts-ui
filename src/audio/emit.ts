@@ -1,6 +1,6 @@
 import type { PracticeView } from "../autodarts/view";
 import type { GameState } from "../game/rules";
-import { audibleCues, type Observation } from "./cues";
+import { audibleCues, planMoment, type Observation, type OutcomeOverlay } from "./cues";
 import { installAudioUnlock, playCues } from "./play";
 
 let lastSignature = "";
@@ -50,4 +50,17 @@ export function emitPracticeCues(
   lastSignature = signatureKey;
   const restoring = Boolean(nextView.reviewHits) && !prevView?.reviewHits;
   playCues(audibleCues(prev, next, restoring));
+}
+
+/** Checkout and Try again are shown even when cues are muted. Undo stays quiet. */
+export function outcomeOverlay(
+  prevView: PracticeView | null,
+  prevGame: GameState,
+  nextView: PracticeView,
+  nextGame: GameState,
+): OutcomeOverlay | null {
+  if (!prevView) return null;
+  const restoring = Boolean(nextView.reviewHits) && !prevView.reviewHits;
+  if (restoring) return null;
+  return planMoment(observe(prevView, prevGame), observe(nextView, nextGame)).overlay;
 }

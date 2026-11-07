@@ -28,6 +28,7 @@ export type GameProjection = {
 export type GameEvent =
   | { type: "start" }
   | { type: "skip" }
+  | { type: "abort" }
   | { type: "strip"; hits: DartSnap[]; connected: boolean };
 
 const TURNS_PER_ATTEMPT = 2;
@@ -129,6 +130,7 @@ function sealTurn(state: GameState): GameState {
 
 export function reduceGame(state: GameState, event: GameEvent): GameState {
   if (event.type === "start") return { phase: "playing", target: FIRST_TARGET, sealed: [], live: [], bustKey: null };
+  if (event.type === "abort") return idleGame();
   if (event.type === "skip") {
     if (state.phase !== "playing") return state;
     if (state.target >= LAST_TARGET) {

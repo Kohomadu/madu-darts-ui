@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { Hit } from "../autodarts/parse";
 import type { PracticeView } from "../autodarts/view";
-import { emitPracticeCues } from "../audio/emit";
+import { emitPracticeCues, outcomeOverlay } from "../audio/emit";
 import { idleGame, project, reduceGame, type GameProjection, type GameState } from "./rules";
+import { emptySession, freshSession, noteCheckout, noteUndo, type SessionStats } from "./session";
+
+export type OutcomeMoment = { id: number; kind: "checkout" | "try-again" };
 
 /** Game state from before a Turn landed, plus the Hits the UI sealed with. */
 export type SealedVisit = {
@@ -49,11 +52,19 @@ export function useGame(view: PracticeView): GameProjection & {
   sealedVisit: SealedVisit | null;
   restoreVisit: (visit: SealedVisit) => void;
   skip: () => void;
+  abort: () => void;
   pauseScoring: () => void;
   resumeScoring: () => void;
+  checkouts: number;
+  highTarget: number;
+  moment: OutcomeMoment | null;
 } {
   const [state, setState] = useState(idleGame);
   const [sealedVisit, setSealedVisit] = useState<SealedVisit | null>(null);
+  const [stats, setStats] = useState<SessionStats>(emptySession);
+  const [moment, setMoment] = useState<OutcomeMoment | null>(null);
+  const momentSerial = useRef(0);
+  const statsRef = useRef(stats);
   const stateRef = useRef<GameState>(state);
   const lastKey = useRef<string | null>(null);
   const prevView = useRef<PracticeView | null>(null);
@@ -68,6 +79,12 @@ export function useGame(view: PracticeView): GameProjection & {
 
   function remember(visit: SealedVisit | null) {
     setSealedVisit(visit);
+  }
+
+  function applyStats(next: SessionStats) {
+    if (next === statsRef.current) return;
+    statsRef.current = next;
+    setStats(next);
   }
 
   useEffect(() => {
@@ -108,6 +125,12 @@ export function useGame(view: PracticeView): GameProjection & {
 
     const nextGame = reduceGame(prevGame, { type: "strip", hits: view.hits, connected });
     stateRef.current = nextGame;
+    applyStats(noteCheckout(statsRef.current, prevGame, nextGame));
+    const overlay = outcomeOverlay(prevView.current, prevGame, view, nextGame);
+    if (overlay) {
+      momentSerial.current += 1;
+      setMoment({ id: momentSerial.current, kind: overlay });
+    }
     setState(nextGame);
     emitPracticeCues(prevView.current, prevGame, view, nextGame);
     prevView.current = view;
@@ -115,13 +138,18 @@ export function useGame(view: PracticeView): GameProjection & {
 
   return {
     ...project(state),
+    checkouts: stats.checkouts,
+    highTarget: stats.highTarget,
+    moment,
     sealedVisit,
     restoreVisit(visit) {
       const baseline = cloneGame(visit.baseline);
       visitBaseline.current = baseline;
       restoring.current = true;
+      const prev = stateRef.current;
       const next = reduceGame(baseline, { type: "strip", hits: visit.hits, connected: true });
       stateRef.current = next;
+      applyStats(noteUndo(statsRef.current, prev, next));
       setSealedVisit(null);
       setState(next);
     },
@@ -131,6 +159,16 @@ export function useGame(view: PracticeView): GameProjection & {
       visitBaseline.current = null;
       skipping.current = true;
       setSealedVisit(null);
+      setState(next);
+    },
+    abort() {
+      if (stateRef.current.phase === "idle") return;
+      const next = reduceGame(stateRef.current, { type: "abort" });
+      stateRef.current = next;
+      visitBaseline.current = null;
+      skipping.current = true;
+      setSealedVisit(null);
+      applyStats(emptySession());
       setState(next);
     },
     pauseScoring() {
@@ -153,6 +191,7 @@ export function useGame(view: PracticeView): GameProjection & {
       });
       visitBaseline.current = current.hits.length > 0 && connected ? started : null;
       setSealedVisit(null);
+      applyStats(noteCheckout(freshSession(started.target), started, nextGame));
       stateRef.current = nextGame;
       lastKey.current = stripKey(current);
       setState(nextGame);
