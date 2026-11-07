@@ -2,9 +2,7 @@ import { useMemo, useState } from "react";
 
 export type Ring = "S" | "D" | "T";
 
-const NUMBERS = [
-  20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5,
-] as const;
+export const PAD_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] as const;
 
 export type SegmentDraft =
   | { kind: "sector"; ring: Ring; number: number }
@@ -66,8 +64,8 @@ export function SegmentPad({ hitIndex, initialSegment, onConfirm, onCancel }: Se
       <p className="hint">
         Manual Override for Hit {hitIndex + 1} (local only). Pick S/D/T and a number, then OK.
       </p>
-      <div className="pad-numbers" role="group" aria-label="Board numbers">
-        {NUMBERS.map((n) => (
+      <div className="pad-numbers" role="group" aria-label="Numbers">
+        {PAD_NUMBERS.map((n) => (
           <button
             key={n}
             type="button"

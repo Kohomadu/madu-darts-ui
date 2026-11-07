@@ -41,12 +41,62 @@ function points(name: string): number {
   return scoreSegment(name).points;
 }
 
-function finishName(left: number): string | null {
-  if (left === 50) return "Bull";
+function doubleFinish(left: number): string | null {
   if (left >= 2 && left <= 40 && left % 2 === 0) return `D${left / 2}`;
   return null;
 }
 
+function finishName(left: number): string | null {
+  if (left === 50) return "Bull";
+  return doubleFinish(left);
+}
+
+function setupFor(need: number): string | null {
+  return BIG_SETUP.find((name) => points(name) === need) ?? null;
+}
+
+/** Two-dart finish on a double, never Inner Bull. Favourite doubles win, using a big setup. */
+function twoDartAvoidingBull(remaining: number): string[] | null {
+  for (const finish of FAVOURITE_FINISH) {
+    if (finish === "Bull") continue;
+    const setup = setupFor(remaining - points(finish));
+    if (setup) return [setup, finish];
+  }
+  for (const setup of ANY_SETUP) {
+    const finish = doubleFinish(remaining - points(setup));
+    if (finish) return [setup, finish];
+  }
+  return null;
+}
+
+function oneDartAvoidingBull(remaining: number): string[] | null {
+  const name = doubleFinish(remaining);
+  return name ? [name] : null;
+}
+
+function threeDartAvoidingBull(remaining: number): string[] | null {
+  for (const first of ANY_SETUP) {
+    const left = remaining - points(first);
+    if (left < 2) continue;
+    const rest = oneDartAvoidingBull(left) ?? twoDartAvoidingBull(left);
+    if (rest) return [first, ...rest];
+  }
+  return null;
+}
+
+function finishAvoidingBull(remaining: number, slots: number): string[] | null {
+  if (remaining < 2) return null;
+  if (slots >= 1) {
+    const one = oneDartAvoidingBull(remaining);
+    if (one) return one;
+  }
+  if (slots >= 2) {
+    const two = twoDartAvoidingBull(remaining);
+    if (two) return two;
+  }
+  if (slots >= 3) return threeDartAvoidingBull(remaining);
+  return null;
+}
 function oneDart(remaining: number): string[] | null {
   const name = finishName(remaining);
   return name ? [name] : null;
@@ -130,15 +180,16 @@ function greedy(remaining: number, slots: number): string[] {
 }
 
 /**
- * Segments still to throw. A finish that fits in the open slots is preferred.
- * Otherwise the start of a three-dart finish, or the best scoring setup.
+ * Segments still to throw. A finish that fits in the open slots is preferred,
+ * and a finish without Inner Bull wins when one fits. Otherwise the start of
+ * a three-dart finish, or the best scoring setup.
  */
 export function checkoutRoute(remaining: number, slots: number): string[] {
   if (slots <= 0 || remaining <= 1) return [];
   const open = Math.min(slots, 3);
-  const exact = finishWithin(remaining, open);
+  const exact = finishAvoidingBull(remaining, open) ?? finishWithin(remaining, open);
   if (exact) return exact;
-  const full = finishWithin(remaining, 3);
+  const full = finishAvoidingBull(remaining, 3) ?? finishWithin(remaining, 3);
   if (full) return full.slice(0, open);
   return greedy(remaining, open);
 }

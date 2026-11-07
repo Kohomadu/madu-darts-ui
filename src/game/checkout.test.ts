@@ -15,9 +15,12 @@ describe("Checkout Route", () => {
 
   it("finishes 170 on Inner Bull and keeps shorter finishes short", () => {
     expect(checkoutRoute(170, 3)).toEqual(["T20", "T20", "Bull"]);
-    expect(checkoutRoute(50, 3)).toEqual(["Bull"]);
+    expect(checkoutRoute(50, 3)).toEqual(["S18", "D16"]);
+    expect(checkoutRoute(50, 2)).toEqual(["S18", "D16"]);
+    expect(checkoutRoute(50, 1)).toEqual(["Bull"]);
     expect(checkoutRoute(40, 1)).toEqual(["D20"]);
-    expect(checkoutRoute(101, 3)).toEqual(["T17", "Bull"]);
+    expect(checkoutRoute(101, 3)).toEqual(["T20", "S17", "D12"]);
+    expect(checkoutRoute(101, 2)).toEqual(["T17", "Bull"]);
   });
 
   it("checks out every finishable remaining score on a double", () => {

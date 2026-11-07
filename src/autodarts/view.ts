@@ -17,6 +17,8 @@ export type PracticeView = {
    * keep showing these Hits. A new dart from the stream abandons the edit.
    */
   reviewHits: Hit[] | null;
+  /** After Next score, keep the strip empty until Autodarts itself reports no Hits. */
+  holdEmpty: boolean;
 };
 
 export type PracticeEvent =
@@ -25,6 +27,8 @@ export type PracticeEvent =
   | { type: "local-override"; index: number; hit: Hit }
   | { type: "restore-turn"; hits: Hit[] }
   | { type: "finish-review" }
+  | { type: "hold-empty" }
+  | { type: "release-hold" }
   | { type: "socket-open" }
   | { type: "socket-closed" }
   | { type: "unreachable" };
@@ -38,6 +42,7 @@ export function connectingView(): PracticeView {
     streamHits: [],
     localOverrides: {},
     reviewHits: null,
+    holdEmpty: false,
   };
 }
 
@@ -69,6 +74,7 @@ export function applySnapshot(
     hits: merged.hits,
     localOverrides: merged.localOverrides,
     reviewHits: null,
+    holdEmpty: false,
   };
 }
 
@@ -82,6 +88,7 @@ export function pauseView(view: PracticeView): PracticeView {
     streamHits: view.streamHits,
     localOverrides: view.localOverrides,
     reviewHits: view.reviewHits,
+    holdEmpty: view.holdEmpty,
   };
 }
 
@@ -90,6 +97,21 @@ export function reducePractice(view: PracticeView, event: PracticeEvent): Practi
     case "connecting":
       return connectingView();
     case "snapshot": {
+      if (view.holdEmpty) {
+        if (event.snapshot.hits.length > 0) {
+          return {
+            ...view,
+            phase: event.via,
+            status: event.snapshot.status,
+            event: event.snapshot.event,
+            streamHits: event.snapshot.hits,
+            hits: [],
+            reviewHits: null,
+            localOverrides: {},
+          };
+        }
+        return applySnapshot(event.snapshot, event.via);
+      }
       if (view.reviewHits && event.snapshot.hits.length === 0) {
         return {
           ...view,
@@ -120,7 +142,7 @@ export function reducePractice(view: PracticeView, event: PracticeEvent): Practi
     }
     case "restore-turn": {
       const reviewHits = event.hits.map((hit) => ({ ...hit }));
-      return { ...view, reviewHits, hits: reviewHits, localOverrides: {} };
+      return { ...view, reviewHits, hits: reviewHits, localOverrides: {}, holdEmpty: false };
     }
     case "finish-review": {
       if (!view.reviewHits) return view;
@@ -134,6 +156,24 @@ export function reducePractice(view: PracticeView, event: PracticeEvent): Practi
         localOverrides: {},
         status,
         event: eventName,
+      };
+    }
+    case "hold-empty":
+      return {
+        ...view,
+        holdEmpty: true,
+        hits: [],
+        reviewHits: null,
+        localOverrides: {},
+      };
+    case "release-hold": {
+      if (!view.holdEmpty) return view;
+      return {
+        ...view,
+        holdEmpty: false,
+        hits: view.streamHits.map((hit) => ({ ...hit })),
+        reviewHits: null,
+        localOverrides: {},
       };
     }
     case "socket-open":

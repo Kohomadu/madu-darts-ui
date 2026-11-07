@@ -111,4 +111,22 @@ describe("101 scoring", () => {
     });
     expect(project(paused)).toMatchObject({ remaining: 41, busted: false, dartsLeft: 5 });
   });
+
+  it("skips the current 101 target for a fresh attempt at the next one", () => {
+    const skipped = reduceGame(strip(started(), ["T20", "T20"]), { type: "skip" });
+    expect(project(skipped)).toMatchObject({
+      phase: "playing",
+      target: 102,
+      remaining: 102,
+      turnsLeft: 2,
+      dartsLeft: 6,
+      busted: false,
+    });
+    expect(reduceGame(idleGame(), { type: "skip" })).toEqual(idleGame());
+  });
+
+  it("ends the run when the current target is already 170", () => {
+    const at170: GameState = { phase: "playing", target: 170, sealed: [], live: [], bustKey: null };
+    expect(project(reduceGame(at170, { type: "skip" })).phase).toBe("complete");
+  });
 });

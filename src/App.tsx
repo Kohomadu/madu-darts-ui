@@ -6,6 +6,7 @@ import {
   normalizeBaseUrl,
 } from "./autodarts/baseUrl";
 import { resolveLocalOverride } from "./autodarts/override";
+import { resetBoard } from "./autodarts/resetBoard";
 import type { Hit } from "./autodarts/parse";
 import { useAutodarts } from "./autodarts/useAutodarts";
 import type { ConnectionPhase } from "./autodarts/view";
@@ -14,6 +15,7 @@ import { checkoutRoute, openRouteSlots, shownRemaining } from "./game/checkout";
 import { scoreSegment } from "./game/rules";
 import { canUndoTurn, useGame } from "./game/useGame";
 import { SegmentPad } from "./override/SegmentPad";
+import { presenceLabel, recoveryCopy, shellPresence } from "./shell/presence";
 
 function loadBaseUrl(): string {
   try {
@@ -47,7 +49,9 @@ export function App() {
   const [urlError, setUrlError] = useState<string | null>(null);
   const [pickIndex, setPickIndex] = useState<number | null>(null);
   const [overrideError, setOverrideError] = useState<string | null>(null);
-  const { view, error, applyLocalOverride, restoreTurn, finishReview } = useAutodarts(baseUrl);
+  const [resetting, setResetting] = useState(false);
+  const [boardNote, setBoardNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const { view, error, applyLocalOverride, restoreTurn, finishReview, holdEmpty, releaseHold } = useAutodarts(baseUrl);
   const accuracy = useAccuracy(view);
   const game = useGame(view);
   const live = view.phase === "live" || view.phase === "polling";
@@ -75,6 +79,12 @@ export function App() {
       setPickIndex(null);
     }
   }, [pickIndex, view.hits.length]);
+
+  useEffect(() => {
+    if (!boardNote) return;
+    const timer = window.setTimeout(() => setBoardNote(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [boardNote]);
 
   function commitSegment(segmentName: string) {
     if (pickIndex == null || !live) return;
@@ -106,12 +116,62 @@ export function App() {
     finishReview();
   }
 
+  async function nextScore() {
+    if (!live || resetting || game.phase !== "playing") return;
+    setResetting(true);
+    game.pauseScoring();
+    holdEmpty();
+    const result = await resetBoard();
+    if (!result.ok) {
+      releaseHold();
+      game.resumeScoring();
+      setResetting(false);
+      setBoardNote({ ok: false, text: result.message });
+      return;
+    }
+    game.skip();
+    setResetting(false);
+    setPickIndex(null);
+    setBoardNote({ ok: true, text: "Next score" });
+  }
+
+  async function resetTheBoard() {
+    if (!live || resetting) return;
+    setResetting(true);
+    const result = await resetBoard();
+    setResetting(false);
+    setBoardNote(
+      result.ok ? { ok: true, text: "Board reset" } : { ok: false, text: result.message },
+    );
+  }
+
   const level =
     game.phase === "complete" ? "170 cleared" : game.phase === "playing" ? `Target ${game.target}` : "501";
+  const presence = live ? shellPresence(view.status) : null;
+  const recovery = recoveryCopy({
+    presence,
+    hitCount: view.hits.length,
+    busted: game.busted,
+    canUndo,
+  });
 
   return (
-    <div className="play">
+      <div className="play">
       <h1 className="sr-only">Madu Darts</h1>
+      <p className="status-strip">
+        <span className={`conn ${view.phase}`} role="status">
+          {connectionLabel(view.phase)}
+        </span>
+        <span
+          className="accuracy"
+          title={accuracy.total ? `${accuracy.unchanged} of ${accuracy.total} unchanged` : undefined}
+        >
+          Detection Accuracy {accuracy.percent == null ? "—" : `${accuracy.percent}%`}
+        </span>
+        <button type="button" className="text" onClick={() => accuracy.reset()}>
+          Reset
+        </button>
+      </p>
       <header className="score">
         <p className="level">
           {level}
@@ -126,26 +186,18 @@ export function App() {
             <span key={index} className={index < view.hits.length ? "pip on" : "pip"} />
           ))}
         </div>
-        <p className="secondary">
-          <span className={`conn ${view.phase}`} role="status">
-            {connectionLabel(view.phase)}
-          </span>
-          <span
-            className="accuracy"
-            title={accuracy.total ? `${accuracy.unchanged} of ${accuracy.total} unchanged` : undefined}
-          >
-            Detection Accuracy {accuracy.percent == null ? "—" : `${accuracy.percent}%`}
-          </span>
-          {game.phase === "playing" ? (
-            <span>
-              {countLabel(game.turnsLeft, "turn", "turns")} · {countLabel(game.dartsLeft, "dart", "darts")} left
-            </span>
-          ) : null}
-          <button type="button" className="text" onClick={() => accuracy.reset()}>
-            Reset
-          </button>
-        </p>
+        {game.phase === "playing" ? (
+          <p className="secondary">
+            {countLabel(game.turnsLeft, "turn", "turns")} · {countLabel(game.dartsLeft, "dart", "darts")} left
+          </p>
+        ) : null}
       </header>
+      {presence ? (
+        <p className={`presence ${presence}`} role="status">
+          {presenceLabel(presence)}
+        </p>
+      ) : null}
+      {recovery ? <p className="recovery">{recovery}</p> : null}
       <HitStrip
         hits={view.hits}
         route={route}
@@ -172,6 +224,11 @@ export function App() {
       <Board hits={view.hits} paused={disconnected} />
       {urlError ? <p className="banner warn">{urlError}</p> : null}
       {disconnected && error ? <p className="pause-copy">{error}. The Turn is paused.</p> : null}
+      {boardNote ? (
+        <p className={boardNote.ok ? "pause-copy" : "pause-copy warn"} role="status">
+          {boardNote.text}
+        </p>
+      ) : null}
       <footer className="chrome">
         {canUndo ? (
           <button type="button" onClick={undoLastTurn}>
@@ -183,6 +240,16 @@ export function App() {
             Done
           </button>
         ) : null}
+        <button type="button" disabled={!live || resetting} onClick={() => void resetTheBoard()}>
+          Reset board
+        </button>
+        <button
+          type="button"
+          disabled={!live || resetting || game.phase !== "playing"}
+          onClick={() => void nextScore()}
+        >
+          Next score
+        </button>
         <button type="button" className="cta" onClick={() => game.start()}>
           Start 101
         </button>

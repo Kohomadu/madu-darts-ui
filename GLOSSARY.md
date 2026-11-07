@@ -28,6 +28,10 @@ _Avoid_: Score fix, edit, patch (as product terms)
 Putting the last sealed Turn’s Hits back on the strip — the Segments the UI was using when that Turn sealed, including Manual Overrides — so the player can correct them and seal the Turn again. Autodarts is not asked to rewrite that Turn.
 _Avoid_: Rollback, rewrite
 
+**Reset board**:
+Asking the detection box to clear a stuck takeout or a false hand. Sealed Turns in this UI stay as they are.
+_Avoid_: Undo, score reset
+
 **Detection Accuracy**:
 The running percentage of finalized Hits that were left unchanged — (Hits without a Manual Override) ÷ (all finalized Hits) × 100 — persisted locally across sessions. Hits enter the denominator when the Turn seals (takeout); a Manual Override during that Turn marks the Hit wrong once.
 _Avoid_: Precision, confidence, success rate
@@ -45,5 +49,9 @@ The first Training Game: start at remaining score 101; clear it in at most two T
 _Avoid_: X01 (too generic), checkout trainer (unless referring to the drill informally)
 
 **Checkout Route**:
-The suggested sequence of up to three Segments to throw next for the current remaining score (e.g. T20 → 25 → D18). Shown in the three Hit boxes whenever a route exists; updates as Hits land and remaining score changes.
+The suggested sequence of up to three Segments to throw next for the current remaining score (e.g. T20 → 25 → D18). Shown in the three Hit boxes whenever a route exists; updates as Hits land and remaining score changes. A finish that does not use Inner Bull is preferred when another legal route fits in the open dart count; Inner Bull is used only when it is required.
 _Avoid_: Hint, tip, obstacle path
+
+**Next score**:
+Abandoning the current 101 target for a fresh attempt at the next target, and asking the box to clear the Board. On 170 it ends the run. A failed reset does not advance the target.
+_Avoid_: Skip, bust

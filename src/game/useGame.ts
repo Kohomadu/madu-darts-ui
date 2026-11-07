@@ -21,7 +21,7 @@ export function canUndoTurn(options: {
 
 function stripKey(view: PracticeView): string {
   const hits = view.hits.map((hit) => `${hit.segmentName}:${hit.coordsX}:${hit.coordsY}`).join("|");
-  return `${view.phase}~${view.status}~${view.event}~${hits}`;
+  return `${view.phase}~${view.status}~${view.event}~${view.holdEmpty ? "hold" : "open"}~${hits}`;
 }
 
 function isConnected(view: PracticeView): boolean {
@@ -48,6 +48,9 @@ export function useGame(view: PracticeView): GameProjection & {
   start: () => void;
   sealedVisit: SealedVisit | null;
   restoreVisit: (visit: SealedVisit) => void;
+  skip: () => void;
+  pauseScoring: () => void;
+  resumeScoring: () => void;
 } {
   const [state, setState] = useState(idleGame);
   const [sealedVisit, setSealedVisit] = useState<SealedVisit | null>(null);
@@ -56,6 +59,10 @@ export function useGame(view: PracticeView): GameProjection & {
   const prevView = useRef<PracticeView | null>(null);
   const visitBaseline = useRef<GameState | null>(null);
   const restoring = useRef(false);
+  const skipping = useRef(false);
+  const paused = useRef(false);
+  const forceSync = useRef(false);
+  const [syncTick, setSyncTick] = useState(0);
   const viewRef = useRef(view);
   viewRef.current = view;
 
@@ -65,9 +72,20 @@ export function useGame(view: PracticeView): GameProjection & {
 
   useEffect(() => {
     const key = stripKey(view);
+    if (paused.current && !skipping.current) {
+      if (lastKey.current === key) return;
+      lastKey.current = key;
+      prevView.current = view;
+      return;
+    }
     const skipBaseline = restoring.current;
+    const skipped = skipping.current;
+    const force = forceSync.current;
     restoring.current = false;
-    if (lastKey.current === key) return;
+    skipping.current = false;
+    forceSync.current = false;
+    paused.current = false;
+    if (!force && lastKey.current === key) return;
     lastKey.current = key;
     const prevGame = stateRef.current;
     const prevHits = prevView.current?.hits ?? [];
@@ -76,7 +94,7 @@ export function useGame(view: PracticeView): GameProjection & {
     if (!skipBaseline && prevHits.length === 0 && view.hits.length > 0) {
       visitBaseline.current = cloneGame(prevGame);
     }
-    if (prevHits.length > 0 && view.hits.length === 0 && connected) {
+    if (!skipped && prevHits.length > 0 && view.hits.length === 0 && connected) {
       if (isTakeout(view) && visitBaseline.current) {
         remember({
           baseline: visitBaseline.current,
@@ -93,7 +111,7 @@ export function useGame(view: PracticeView): GameProjection & {
     setState(nextGame);
     emitPracticeCues(prevView.current, prevGame, view, nextGame);
     prevView.current = view;
-  }, [view]);
+  }, [view, syncTick]);
 
   return {
     ...project(state),
@@ -106,6 +124,22 @@ export function useGame(view: PracticeView): GameProjection & {
       stateRef.current = next;
       setSealedVisit(null);
       setState(next);
+    },
+    skip() {
+      const next = reduceGame(stateRef.current, { type: "skip" });
+      stateRef.current = next;
+      visitBaseline.current = null;
+      skipping.current = true;
+      setSealedVisit(null);
+      setState(next);
+    },
+    pauseScoring() {
+      paused.current = true;
+    },
+    resumeScoring() {
+      paused.current = false;
+      forceSync.current = true;
+      setSyncTick((tick) => tick + 1);
     },
     start() {
       const current = viewRef.current;

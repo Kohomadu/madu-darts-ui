@@ -257,6 +257,46 @@ describe("connection", () => {
     expect(fresh.reviewHits).toBeNull();
     expect(fresh.hits.map((hit) => hit.segmentName)).toEqual(["S20"]);
   });
+
+  it("holds the strip empty after Next score until Autodarts reports no Hits", () => {
+    const live = reducePractice(connectingView(), {
+      type: "snapshot",
+      snapshot: parseState(LIVE_STATE)!,
+      via: "live",
+    });
+    const held = reducePractice(live, { type: "hold-empty" });
+    expect(held.holdEmpty).toBe(true);
+    expect(held.hits).toEqual([]);
+
+    const still = reducePractice(held, {
+      type: "snapshot",
+      snapshot: parseState(LIVE_STATE)!,
+      via: "live",
+    });
+    expect(still.holdEmpty).toBe(true);
+    expect(still.hits).toEqual([]);
+    expect(still.streamHits).toHaveLength(3);
+
+    const cleared = reducePractice(still, {
+      type: "snapshot",
+      snapshot: parseState({ status: "throw", event: "takeoutFinished" })!,
+      via: "live",
+    });
+    expect(cleared.holdEmpty).toBe(false);
+    expect(cleared.hits).toEqual([]);
+  });
+
+  it("puts the stream Hits back when Next score did not reset the Board", () => {
+    const live = reducePractice(connectingView(), {
+      type: "snapshot",
+      snapshot: parseState(LIVE_STATE)!,
+      via: "live",
+    });
+    const held = reducePractice(live, { type: "hold-empty" });
+    const released = reducePractice(held, { type: "release-hold" });
+    expect(released.holdEmpty).toBe(false);
+    expect(released.hits.map((hit) => hit.segmentName)).toEqual(["S18", "S20", "S14"]);
+  });
 });
 
 describe("Autodarts URL", () => {

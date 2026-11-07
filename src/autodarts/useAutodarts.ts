@@ -8,6 +8,8 @@ export function useAutodarts(baseUrl: string): {
   applyLocalOverride: (index: number, hit: Hit) => void;
   restoreTurn: (hits: Hit[]) => void;
   finishReview: () => void;
+  holdEmpty: () => void;
+  releaseHold: () => void;
 } {
   const [view, setView] = useState<PracticeView>(connectingView);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +173,12 @@ export function useAutodarts(baseUrl: string): {
     },
     finishReview() {
       setView((current) => reducePractice(current, { type: "finish-review" }));
+    },
+    holdEmpty() {
+      setView((current) => reducePractice(current, { type: "hold-empty" }));
+    },
+    releaseHold() {
+      setView((current) => reducePractice(current, { type: "release-hold" }));
     },
   };
 }
