@@ -205,6 +205,57 @@ describe("connection", () => {
     });
     expect(cleared.hits).toEqual([]);
     expect(cleared.localOverrides).toEqual({});
+    expect(cleared.reviewHits).toBeNull();
+  });
+
+  it("restores a sealed Turn across an empty poll and keeps a Manual Override on it", () => {
+    const live = reducePractice(connectingView(), {
+      type: "snapshot",
+      snapshot: parseState(LIVE_STATE)!,
+      via: "live",
+    });
+    const cleared = reducePractice(live, {
+      type: "snapshot",
+      snapshot: parseState({ status: "throw", event: "takeoutFinished" })!,
+      via: "live",
+    });
+    const restored = reducePractice(cleared, { type: "restore-turn", hits: live.hits });
+    expect(restored.hits.map((hit) => hit.segmentName)).toEqual(["S18", "S20", "S14"]);
+    expect(restored.streamHits).toEqual([]);
+    expect(restored.reviewHits).toHaveLength(3);
+
+    const polled = reducePractice(restored, {
+      type: "snapshot",
+      snapshot: parseState({ status: "throw", event: "takeoutFinished" })!,
+      via: "polling",
+    });
+    expect(polled.hits.map((hit) => hit.segmentName)).toEqual(["S18", "S20", "S14"]);
+    expect(polled.reviewHits).toHaveLength(3);
+
+    const edited = reducePractice(polled, {
+      type: "local-override",
+      index: 0,
+      hit: { ...live.hits[0], segmentName: "T20" },
+    });
+    expect(edited.hits.map((hit) => hit.segmentName)).toEqual(["T20", "S20", "S14"]);
+    expect(edited.streamHits).toEqual([]);
+
+    const done = reducePractice(edited, { type: "finish-review" });
+    expect(done.hits).toEqual([]);
+    expect(done.reviewHits).toBeNull();
+    expect(done.event).toBe("takeoutFinished");
+
+    const fresh = reducePractice(restored, {
+      type: "snapshot",
+      snapshot: parseState({
+        status: "throw",
+        event: "throwDetected",
+        throws: [LIVE_STATE.throws[1]],
+      })!,
+      via: "live",
+    });
+    expect(fresh.reviewHits).toBeNull();
+    expect(fresh.hits.map((hit) => hit.segmentName)).toEqual(["S20"]);
   });
 });
 

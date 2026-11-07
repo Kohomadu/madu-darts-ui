@@ -99,6 +99,38 @@ describe("Detection Accuracy", () => {
     expect(ledger.open.map((hit) => hit.overridden)).toEqual([true, false]);
   });
 
+  it("counts an Override on a restored Turn once", () => {
+    let ledger = withHits(emptyLedger(), THREE);
+    ledger = reduceAccuracy(ledger, { type: "override", index: 0 });
+    ledger = reduceAccuracy(ledger, {
+      type: "snapshot",
+      connected: true,
+      snapshot: { status: "throw", event: "takeoutFinished", hits: [] },
+    });
+    expect(ledger.unchanged).toBe(2);
+    expect(ledger.total).toBe(3);
+
+    ledger = reduceAccuracy(ledger, { type: "unseal" });
+    expect(ledger.total).toBe(0);
+    expect(ledger.unchanged).toBe(0);
+    expect(ledger.open.map((hit) => hit.overridden)).toEqual([true, false, false]);
+
+    ledger = reduceAccuracy(ledger, { type: "override", index: 1 });
+    ledger = withHits(ledger, [hit("T20", 0.1, 0.2), THREE[1], THREE[2]]);
+    ledger = reduceAccuracy(ledger, {
+      type: "snapshot",
+      connected: true,
+      snapshot: { status: "throw", event: "takeoutFinished", hits: [] },
+    });
+    expect(ledger.unchanged).toBe(1);
+    expect(ledger.total).toBe(3);
+    expect(accuracyPercent(ledger)).toBe(33);
+  });
+
+  it("does not unseal a Turn that was never sealed", () => {
+    expect(reduceAccuracy(emptyLedger(), { type: "unseal" })).toEqual(emptyLedger());
+  });
+
   it("reset clears the counters and leaves the open Turn marks", () => {
     let ledger = withHits(emptyLedger(), THREE);
     ledger = reduceAccuracy(ledger, { type: "override", index: 0 });

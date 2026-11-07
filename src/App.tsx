@@ -12,7 +12,7 @@ import type { ConnectionPhase } from "./autodarts/view";
 import { Board } from "./board/Board";
 import { checkoutRoute, openRouteSlots, shownRemaining } from "./game/checkout";
 import { scoreSegment } from "./game/rules";
-import { useGame } from "./game/useGame";
+import { canUndoTurn, useGame } from "./game/useGame";
 import { SegmentPad } from "./override/SegmentPad";
 
 function loadBaseUrl(): string {
@@ -47,11 +47,18 @@ export function App() {
   const [urlError, setUrlError] = useState<string | null>(null);
   const [pickIndex, setPickIndex] = useState<number | null>(null);
   const [overrideError, setOverrideError] = useState<string | null>(null);
-  const { view, error, applyLocalOverride } = useAutodarts(baseUrl);
+  const { view, error, applyLocalOverride, restoreTurn, finishReview } = useAutodarts(baseUrl);
   const accuracy = useAccuracy(view);
   const game = useGame(view);
   const live = view.phase === "live" || view.phase === "polling";
   const disconnected = view.phase === "disconnected";
+  const reviewing = view.reviewHits != null;
+  const canUndo = canUndoTurn({
+    connected: live,
+    hitCount: view.hits.length,
+    reviewing,
+    hasSealedVisit: game.sealedVisit != null,
+  });
   const remaining = shownRemaining(game.phase, game.remaining, view.hits);
   const route = checkoutRoute(
     remaining,
@@ -82,6 +89,21 @@ export function App() {
     accuracy.markOverridden(pickIndex);
     applyLocalOverride(pickIndex, hit);
     setPickIndex(null);
+  }
+
+  function undoLastTurn() {
+    const visit = game.sealedVisit;
+    if (!canUndo || !visit) return;
+    accuracy.unseal();
+    game.restoreVisit(visit);
+    restoreTurn(visit.hits);
+    setPickIndex(null);
+  }
+
+  function confirmTurn() {
+    if (!reviewing || !live) return;
+    setPickIndex(null);
+    finishReview();
   }
 
   const level =
@@ -151,6 +173,16 @@ export function App() {
       {urlError ? <p className="banner warn">{urlError}</p> : null}
       {disconnected && error ? <p className="pause-copy">{error}. The Turn is paused.</p> : null}
       <footer className="chrome">
+        {canUndo ? (
+          <button type="button" onClick={undoLastTurn}>
+            Undo
+          </button>
+        ) : null}
+        {reviewing && live ? (
+          <button type="button" onClick={confirmTurn}>
+            Done
+          </button>
+        ) : null}
         <button type="button" className="cta" onClick={() => game.start()}>
           Start 101
         </button>

@@ -31,6 +31,12 @@ function attemptRestarted(prev: GameState, next: GameState): boolean {
   );
 }
 
+/** Undo puts Hits back on the strip. That is not a new Turn, so it stays silent. */
+export function audibleCues(prev: Observation | null, next: Observation, restoring: boolean): Cue[] {
+  if (restoring) return [];
+  return planCues(prev, next);
+}
+
 /**
  * Cues for one stream step. The first live frame is a baseline, so Hits already
  * on the Board do not thump. A same-length strip is a Manual Override, not a new Hit.

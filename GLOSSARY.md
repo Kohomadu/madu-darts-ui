@@ -24,6 +24,10 @@ _Avoid_: Slice, bed, field, zone
 A player correction of a Hit’s Segment applied in this UI for the open Turn (Board strip, Training Game scoring, Detection Accuracy). v1 does not write the correction to Winmau Autodarts Detection.
 _Avoid_: Score fix, edit, patch (as product terms)
 
+**Undo**:
+Putting the last sealed Turn’s Hits back on the strip — the Segments the UI was using when that Turn sealed, including Manual Overrides — so the player can correct them and seal the Turn again. Autodarts is not asked to rewrite that Turn.
+_Avoid_: Rollback, rewrite
+
 **Detection Accuracy**:
 The running percentage of finalized Hits that were left unchanged — (Hits without a Manual Override) ÷ (all finalized Hits) × 100 — persisted locally across sessions. Hits enter the denominator when the Turn seals (takeout); a Manual Override during that Turn marks the Hit wrong once.
 _Avoid_: Precision, confidence, success rate

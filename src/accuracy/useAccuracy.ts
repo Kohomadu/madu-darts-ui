@@ -23,14 +23,15 @@ export function loadLedger(): AccuracyLedger {
     const unchanged = typeof data.unchanged === "number" && data.unchanged >= 0 ? data.unchanged : 0;
     const total = typeof data.total === "number" && data.total >= unchanged ? data.total : unchanged;
     const open = Array.isArray(data.open) ? data.open.filter(isTracked) : [];
-    return { unchanged, total, open };
+    return { unchanged, total, open, lastSealed: null };
   } catch {
     return emptyLedger();
   }
 }
 
 function persist(ledger: AccuracyLedger) {
-  localStorage.setItem(ACCURACY_STORAGE_KEY, JSON.stringify(ledger));
+  const stored = { unchanged: ledger.unchanged, total: ledger.total, open: ledger.open };
+  localStorage.setItem(ACCURACY_STORAGE_KEY, JSON.stringify(stored));
 }
 
 function viewKey(view: PracticeView): string {
@@ -72,6 +73,13 @@ export function useAccuracy(view: PracticeView) {
     reset() {
       setLedger((current) => {
         const next = reduceAccuracy(current, { type: "reset" });
+        persist(next);
+        return next;
+      });
+    },
+    unseal() {
+      setLedger((current) => {
+        const next = reduceAccuracy(current, { type: "unseal" });
         persist(next);
         return next;
       });

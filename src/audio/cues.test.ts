@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Hit } from "../autodarts/parse";
 import { idleGame, reduceGame, type GameState } from "../game/rules";
-import { planCues, type Observation } from "./cues";
+import { audibleCues, planCues, type Observation } from "./cues";
 
 function hit(segmentName: string, coordsX: number): Hit {
   return { segmentName, segmentNumber: null, multiplier: null, bed: null, coordsX, coordsY: 0 };
@@ -114,5 +114,14 @@ describe("practice cues", () => {
     expect(planCues(thrown, taken)).toEqual(["win", "chime"]);
     expect(planCues(taken, dropped)).toEqual([]);
     expect(planCues(dropped, frame([hit("S1", 0), hit("S5", 1)], done))).toEqual([]);
+  });
+
+  it("stays silent when Undo puts a sealed Turn back on the strip", () => {
+    const started = playing();
+    const busted = strip(started, ["T20", "T20", "T20"]);
+    const empty = frame([], started);
+    const restored = frame([hit("T20", 0), hit("T20", 1), hit("T20", 2)], busted);
+    expect(planCues(empty, restored)).toEqual(["thump", "thump", "thump", "fail"]);
+    expect(audibleCues(empty, restored, true)).toEqual([]);
   });
 });

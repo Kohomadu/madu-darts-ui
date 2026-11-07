@@ -6,6 +6,8 @@ export function useAutodarts(baseUrl: string): {
   view: PracticeView;
   error: string | null;
   applyLocalOverride: (index: number, hit: Hit) => void;
+  restoreTurn: (hits: Hit[]) => void;
+  finishReview: () => void;
 } {
   const [view, setView] = useState<PracticeView>(connectingView);
   const [error, setError] = useState<string | null>(null);
@@ -163,6 +165,12 @@ export function useAutodarts(baseUrl: string): {
     error,
     applyLocalOverride(index, hit) {
       setView((current) => reducePractice(current, { type: "local-override", index, hit }));
+    },
+    restoreTurn(hits) {
+      setView((current) => reducePractice(current, { type: "restore-turn", hits }));
+    },
+    finishReview() {
+      setView((current) => reducePractice(current, { type: "finish-review" }));
     },
   };
 }

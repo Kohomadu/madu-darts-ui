@@ -12,12 +12,19 @@ export type PracticeView = {
   streamHits: Hit[];
   /** Local Manual Overrides by strip index for the open Turn. */
   localOverrides: Partial<Record<number, Hit>>;
+  /**
+   * Hits put back on the strip by Undo. While set, empty Autodarts snapshots
+   * keep showing these Hits. A new dart from the stream abandons the edit.
+   */
+  reviewHits: Hit[] | null;
 };
 
 export type PracticeEvent =
   | { type: "connecting" }
   | { type: "snapshot"; snapshot: BoardSnapshot; via: "live" | "polling" }
   | { type: "local-override"; index: number; hit: Hit }
+  | { type: "restore-turn"; hits: Hit[] }
+  | { type: "finish-review" }
   | { type: "socket-open" }
   | { type: "socket-closed" }
   | { type: "unreachable" };
@@ -30,6 +37,7 @@ export function connectingView(): PracticeView {
     hits: [],
     streamHits: [],
     localOverrides: {},
+    reviewHits: null,
   };
 }
 
@@ -60,6 +68,7 @@ export function applySnapshot(
     streamHits: snapshot.hits,
     hits: merged.hits,
     localOverrides: merged.localOverrides,
+    reviewHits: null,
   };
 }
 
@@ -72,6 +81,7 @@ export function pauseView(view: PracticeView): PracticeView {
     hits: view.hits,
     streamHits: view.streamHits,
     localOverrides: view.localOverrides,
+    reviewHits: view.reviewHits,
   };
 }
 
@@ -79,9 +89,26 @@ export function reducePractice(view: PracticeView, event: PracticeEvent): Practi
   switch (event.type) {
     case "connecting":
       return connectingView();
-    case "snapshot":
-      return applySnapshot(event.snapshot, event.via, view.localOverrides);
+    case "snapshot": {
+      if (view.reviewHits && event.snapshot.hits.length === 0) {
+        return {
+          ...view,
+          phase: event.via,
+          status: event.snapshot.status,
+          event: event.snapshot.event,
+          streamHits: event.snapshot.hits,
+          hits: view.reviewHits,
+        };
+      }
+      const overrides = view.reviewHits ? {} : view.localOverrides;
+      return applySnapshot(event.snapshot, event.via, overrides);
+    }
     case "local-override": {
+      if (view.reviewHits) {
+        if (event.index < 0 || event.index >= view.reviewHits.length) return view;
+        const reviewHits = view.reviewHits.map((hit, index) => (index === event.index ? event.hit : hit));
+        return { ...view, reviewHits, hits: reviewHits };
+      }
       if (event.index < 0 || event.index >= view.streamHits.length) return view;
       const localOverrides = { ...view.localOverrides, [event.index]: event.hit };
       const merged = mergeHits(view.streamHits, localOverrides);
@@ -89,6 +116,24 @@ export function reducePractice(view: PracticeView, event: PracticeEvent): Practi
         ...view,
         hits: merged.hits,
         localOverrides: merged.localOverrides,
+      };
+    }
+    case "restore-turn": {
+      const reviewHits = event.hits.map((hit) => ({ ...hit }));
+      return { ...view, reviewHits, hits: reviewHits, localOverrides: {} };
+    }
+    case "finish-review": {
+      if (!view.reviewHits) return view;
+      const status = view.status.toLowerCase().includes("takeout") ? view.status : "takeout";
+      const eventName = view.event.toLowerCase().includes("takeout") ? view.event : "takeoutFinished";
+      return {
+        ...view,
+        reviewHits: null,
+        hits: [],
+        streamHits: [],
+        localOverrides: {},
+        status,
+        event: eventName,
       };
     }
     case "socket-open":

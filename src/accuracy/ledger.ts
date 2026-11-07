@@ -12,6 +12,8 @@ export type AccuracyLedger = {
   unchanged: number;
   total: number;
   open: TrackedHit[];
+  /** Open marks from the last sealed Turn. In memory only, so Undo can unseal once. */
+  lastSealed: TrackedHit[] | null;
 };
 
 export type AccuracySnapshot = {
@@ -23,12 +25,13 @@ export type AccuracySnapshot = {
 export type AccuracyEvent =
   | { type: "snapshot"; snapshot: AccuracySnapshot; connected: boolean }
   | { type: "override"; index: number }
+  | { type: "unseal" }
   | { type: "reset" };
 
 export const ACCURACY_STORAGE_KEY = "madu.detectionAccuracy";
 
 export function emptyLedger(): AccuracyLedger {
-  return { unchanged: 0, total: 0, open: [] };
+  return { unchanged: 0, total: 0, open: [], lastSealed: null };
 }
 
 /** Whole percent. Null until at least one Hit has been finalized. */
@@ -86,13 +89,34 @@ function seal(ledger: AccuracyLedger): AccuracyLedger {
   for (const hit of ledger.open) {
     if (!hit.overridden) unchanged += 1;
   }
-  return { unchanged, total: ledger.total + ledger.open.length, open: [] };
+  return {
+    unchanged,
+    total: ledger.total + ledger.open.length,
+    open: [],
+    lastSealed: ledger.open.map((hit) => ({ ...hit })),
+  };
+}
+
+function unseal(ledger: AccuracyLedger): AccuracyLedger {
+  if (!ledger.lastSealed || ledger.lastSealed.length === 0 || ledger.open.length > 0) return ledger;
+  let unchanged = ledger.unchanged;
+  for (const hit of ledger.lastSealed) {
+    if (!hit.overridden) unchanged -= 1;
+  }
+  return {
+    unchanged: Math.max(0, unchanged),
+    total: Math.max(0, ledger.total - ledger.lastSealed.length),
+    open: ledger.lastSealed.map((hit) => ({ ...hit })),
+    lastSealed: null,
+  };
 }
 
 export function reduceAccuracy(ledger: AccuracyLedger, event: AccuracyEvent): AccuracyLedger {
   switch (event.type) {
     case "reset":
-      return { unchanged: 0, total: 0, open: ledger.open };
+      return { unchanged: 0, total: 0, open: ledger.open, lastSealed: null };
+    case "unseal":
+      return unseal(ledger);
     case "override": {
       if (event.index < 0 || event.index >= ledger.open.length) return ledger;
       return {

@@ -1,6 +1,6 @@
 import type { PracticeView } from "../autodarts/view";
 import type { GameState } from "../game/rules";
-import { planCues, type Observation } from "./cues";
+import { audibleCues, type Observation } from "./cues";
 import { installAudioUnlock, playCues } from "./play";
 
 let lastSignature = "";
@@ -48,5 +48,6 @@ export function emitPracticeCues(
   const signatureKey = signature(prev, next);
   if (signatureKey === lastSignature) return;
   lastSignature = signatureKey;
-  playCues(planCues(prev, next));
+  const restoring = Boolean(nextView.reviewHits) && !prevView?.reviewHits;
+  playCues(audibleCues(prev, next, restoring));
 }
