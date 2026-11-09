@@ -45,7 +45,7 @@ A ruleset layered on the live Hit/Turn stream that defines targets, busts, and p
 _Avoid_: Mode, match, leg (unless a future game truly is match play)
 
 **101**:
-The first Training Game: start at remaining score 101; clear it in at most two Turns (six darts) finishing on a double (Inner Bull counts); on success advance to 102, then 103, … up to 170 (170 clear ends the run). A failed clear keeps the same target. A bust restarts the attempt immediately with a fresh six darts at that same target. The run shows how many checkouts have landed and the highest target reached. Those reset when 101 starts again. A double that hits zero shows “Checkout!”; a bust or a missed two-Turn clear shows “Try again”.
+The first Training Game: start at remaining score 101; clear it in at most two Turns (six darts) finishing on a double (Inner Bull counts); on success advance to 102, then 103, … up to 170 (170 clear ends the run). A failed clear keeps the same target. A bust restarts the attempt immediately with a fresh six darts at that same target. The run shows how many checkouts have landed and the highest target reached. Those reset when 101 starts again. A double that hits zero shows “Checkout!”; a bust, a remaining score that cannot be checked out with the darts still left, or a missed two-Turn clear shows “Try again”.
 _Avoid_: X01 (too generic), checkout trainer (unless referring to the drill informally)
 
 **Abort**:
@@ -57,7 +57,7 @@ Silencing the practice cues (the dart, the sealed Turn, a win, a miss) on this d
 _Avoid_: Volume, soundtrack
 
 **Checkout Route**:
-The suggested sequence of up to three Segments to throw next for the current remaining score (e.g. T20 → 25 → D18). Shown in the three Hit boxes whenever a route exists; updates as Hits land and remaining score changes. A finish that does not use Inner Bull is preferred when another legal route fits in the open dart count; Inner Bull is used only when it is required.
+The suggested sequence of up to three Segments to throw next for the current remaining score (e.g. T20 → S9 → D16). Shown in the three Hit boxes whenever a route exists; updates as Hits land and remaining score changes. The path is the primary Dartbase out-chart route for that remaining and the darts still open.
 _Avoid_: Hint, tip, obstacle path
 
 **Next score**:

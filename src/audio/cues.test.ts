@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Hit } from "../autodarts/parse";
-import { idleGame, reduceGame, type GameState } from "../game/rules";
+import { idleGame, project, reduceGame, type GameState } from "../game/rules";
 import { audibleCues, planCues, planMoment, type Observation } from "./cues";
 
 function hit(segmentName: string, coordsX: number): Hit {
@@ -151,5 +151,86 @@ describe("practice cues", () => {
     const before = frame([hit("T20", 0)], open);
     const overridden = frame([hit("T19", 0.4)], strip(started, ["T19"]));
     expect(planMoment(before, overridden)).toEqual({ cues: [], overlay: null });
+  });
+
+  it("shows Try again while the Turn is still on the Board when three darts cannot finish", () => {
+    const at162: GameState = { ...playing(), target: 162 };
+    const two = strip(at162, ["S1", "S1"]);
+    const three = strip(two, ["S1", "S1", "S1"]);
+    const taken = strip(three, []);
+
+    expect(project(three)).toMatchObject({ remaining: 159, dartsLeft: 3, busted: false });
+    expect(planMoment(frame([hit("S1", 0), hit("S1", 1)], two), frame([hit("S1", 0), hit("S1", 1), hit("S1", 2)], three))).toEqual({
+      cues: ["thump"],
+      overlay: "try-again",
+    });
+    expect(planMoment(frame([hit("S1", 0), hit("S1", 1), hit("S1", 2)], three), frame([], taken, { event: "takeoutFinished" }))).toEqual({
+      cues: ["chime"],
+      overlay: null,
+    });
+  });
+
+  it("shows Try again with one dart left on an odd remaining, and stays quiet on a double", () => {
+    let state = strip(playing(), ["S20", "S20", "S20"]);
+    state = strip(state, []);
+    const setup = strip(state, ["S1"]);
+    const odd = strip(setup, ["S1", "S1"]);
+    const even = strip(setup, ["S1", "S20"]);
+
+    expect(project(odd)).toMatchObject({ remaining: 39, dartsLeft: 1 });
+    expect(project(even)).toMatchObject({ remaining: 20, dartsLeft: 1 });
+    expect(planMoment(frame([hit("S1", 0)], setup), frame([hit("S1", 0), hit("S1", 1)], odd))).toEqual({
+      cues: ["thump"],
+      overlay: "try-again",
+    });
+    expect(planMoment(frame([hit("S1", 0)], setup), frame([hit("S1", 0), hit("S20", 1)], even))).toEqual({
+      cues: ["thump"],
+      overlay: null,
+    });
+  });
+
+  it("shows Try again with two darts left over 110, and not again when that Turn is taken out", () => {
+    const at119: GameState = { ...playing(), target: 119 };
+    let state = strip(at119, ["M20", "M20", "M20"]);
+    state = strip(state, []);
+    const stuck = strip(state, ["M20"]);
+    const taken = strip(stuck, []);
+
+    expect(project(stuck)).toMatchObject({ remaining: 119, dartsLeft: 2, busted: false });
+    expect(planMoment(frame([], state), frame([hit("M20", 0)], stuck))).toEqual({
+      cues: ["thump"],
+      overlay: "try-again",
+    });
+    expect(project(taken)).toMatchObject({ target: 119, remaining: 119, dartsLeft: 6 });
+    expect(planMoment(frame([hit("M20", 0)], stuck), frame([], taken, { event: "takeoutFinished" }))).toEqual({
+      cues: ["chime"],
+      overlay: null,
+    });
+  });
+
+  it("does not call a three-dart bogey impossible while four darts remain", () => {
+    const at169: GameState = { ...playing(), target: 169 };
+    const one = strip(at169, ["S5"]);
+    const two = strip(one, ["S5", "S5"]);
+
+    expect(project(two)).toMatchObject({ remaining: 159, dartsLeft: 4 });
+    expect(planMoment(frame([hit("S5", 0)], one), frame([hit("S5", 0), hit("S5", 1)], two)).overlay).toBeNull();
+  });
+
+  it("shows Try again when a Manual Override leaves no double for the last dart", () => {
+    let state = strip(playing(), ["S20", "S20", "S20"]);
+    state = strip(state, []);
+    const setup = strip(state, ["S1"]);
+    const possible = strip(setup, ["S1", "S20"]);
+    const impossible = strip(setup, ["S1", "S19"]);
+
+    expect(planMoment(frame([hit("S1", 0), hit("S20", 1)], possible), frame([hit("S1", 0), hit("S19", 1.2)], impossible))).toEqual({
+      cues: [],
+      overlay: "try-again",
+    });
+    expect(planMoment(frame([hit("S1", 0), hit("S19", 1)], impossible), frame([hit("S1", 0), hit("S20", 1.2)], possible))).toEqual({
+      cues: [],
+      overlay: null,
+    });
   });
 });
