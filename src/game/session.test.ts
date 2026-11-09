@@ -3,7 +3,7 @@ import { idleGame, reduceGame, type GameState } from "./rules";
 import { freshSession, noteCheckout, noteUndo } from "./session";
 
 function playing(target: number): GameState {
-  return { phase: "playing", target, sealed: [], live: [], bustKey: null };
+  return { phase: "playing", game: "101", target, homebase: target, turnsUsed: 0, sealed: [], live: [], bustKey: null };
 }
 
 describe("101 session stats", () => {
@@ -17,11 +17,8 @@ describe("101 session stats", () => {
 
   it("counts clearing 170", () => {
     const done = noteCheckout(freshSession(170), playing(170), {
+      ...playing(170),
       phase: "complete",
-      target: 170,
-      sealed: [],
-      live: [],
-      bustKey: null,
     });
     expect(done).toEqual({ checkouts: 1, highTarget: 170 });
   });

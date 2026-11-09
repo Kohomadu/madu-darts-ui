@@ -21,6 +21,10 @@ function started(): GameState {
   return reduceGame(idleGame(), { type: "start" });
 }
 
+function playing(target: number, game: GameState["game"] = "101"): GameState {
+  return { phase: "playing", game, target, homebase: game === "121" ? 121 : target, turnsUsed: 0, sealed: [], live: [], bustKey: null };
+}
+
 describe("101 scoring", () => {
   it("scores triples, doubles, singles, Inner Bull, outer bull, and a miss", () => {
     expect(scoreSegment("T20")).toEqual({ points: 60, double: false });
@@ -44,7 +48,7 @@ describe("101 scoring", () => {
   });
 
   it("treats Inner Bull as a finishing double", () => {
-    const at50: GameState = { phase: "playing", target: 50, sealed: [], live: [], bustKey: null };
+    const at50 = playing(50);
     let state = strip(at50, ["Bull"]);
     expect(project(state).remaining).toBe(0);
     state = takeout(state);
@@ -52,7 +56,7 @@ describe("101 scoring", () => {
   });
 
   it("busts a non-double that lands on zero, and an overshoot, then restarts on six darts", () => {
-    const at25: GameState = { phase: "playing", target: 25, sealed: [], live: [], bustKey: null };
+    const at25 = playing(25);
     expect(project(strip(at25, ["25"])).busted).toBe(true);
 
     let state = strip(started(), ["T20", "T20"]);
@@ -95,7 +99,7 @@ describe("101 scoring", () => {
   });
 
   it("ends the run when 170 is cleared and does not advance", () => {
-    const at170: GameState = { phase: "playing", target: 170, sealed: [], live: [], bustKey: null };
+    const at170 = playing(170);
     let state = takeout(strip(at170, ["T20", "T20", "Bull"]));
     expect(project(state)).toMatchObject({ phase: "complete", target: 170, remaining: 0 });
     state = strip(state, ["S1"]);
@@ -126,15 +130,83 @@ describe("101 scoring", () => {
   });
 
   it("ends the run when the current target is already 170", () => {
-    const at170: GameState = { phase: "playing", target: 170, sealed: [], live: [], bustKey: null };
+    const at170 = playing(170);
     expect(project(reduceGame(at170, { type: "skip" })).phase).toBe("complete");
   });
 
   it("aborts the run back to free practice without adding Hits", () => {
     const live = strip(started(), ["T20", "T19"]);
     expect(reduceGame(live, { type: "abort" })).toEqual(idleGame());
-    expect(reduceGame({ phase: "complete", target: 170, sealed: [], live: [], bustKey: null }, { type: "abort" })).toEqual(
-      idleGame(),
-    );
+    expect(reduceGame({ ...playing(170), phase: "complete" }, { type: "abort" })).toEqual(idleGame());
+  });
+});
+
+function started121(): GameState {
+  return reduceGame(idleGame(), { type: "start", game: "121" });
+}
+
+describe("121 scoring", () => {
+  it("starts at 121 with Homebase 121 and twelve darts", () => {
+    expect(project(started121())).toMatchObject({
+      game: "121",
+      target: 121,
+      homebase: 121,
+      remaining: 121,
+      turnsLeft: 4,
+      dartsLeft: 12,
+      busted: false,
+    });
+  });
+
+  it("restores the Turn's starting score on a bust and still spends that Turn", () => {
+    let state = takeout(strip(started121(), ["T20"]));
+    expect(project(state)).toMatchObject({ remaining: 61, turnsLeft: 3, dartsLeft: 9 });
+    state = strip(state, ["T20", "T20"]);
+    expect(project(state)).toMatchObject({ busted: true, remaining: 61, target: 121, turnsLeft: 2, dartsLeft: 6 });
+    state = takeout(state);
+    expect(project(state)).toMatchObject({ busted: false, remaining: 61, turnsLeft: 2, dartsLeft: 6 });
+  });
+
+  it("gives the busted Turn back when a Manual Override repairs it", () => {
+    let state = strip(started121(), ["T20", "T20"]);
+    expect(project(state)).toMatchObject({ busted: true, turnsLeft: 3, dartsLeft: 9 });
+    state = strip(state, ["T20", "S1"]);
+    expect(project(state)).toMatchObject({ busted: false, remaining: 60, turnsLeft: 4, dartsLeft: 10 });
+  });
+
+  it("raises Homebase when the checkout lands in the first two Turns", () => {
+    const state = takeout(strip(started121(), ["T20", "T11", "D14"]));
+    expect(project(state)).toMatchObject({ target: 122, homebase: 122, remaining: 122, turnsLeft: 4, dartsLeft: 12 });
+  });
+
+  it("raises the target without Homebase on Turn 3 or 4", () => {
+    const late: GameState = { ...playing(40, "121"), turnsUsed: 2 };
+    const state = takeout(strip(late, ["D20"]));
+    expect(project(state)).toMatchObject({ target: 41, homebase: 121, remaining: 41, turnsLeft: 4, dartsLeft: 12 });
+  });
+
+  it("returns to Homebase after twelve darts without a checkout", () => {
+    let state = started121();
+    for (let turn = 0; turn < 4; turn += 1) state = takeout(strip(state, ["S1"]));
+    expect(project(state)).toMatchObject({ target: 121, homebase: 121, remaining: 121, turnsLeft: 4, dartsLeft: 12 });
+  });
+
+  it("falls back to a raised Homebase after a miss", () => {
+    let state = takeout(strip(started121(), ["T20", "T11", "D14"]));
+    for (let turn = 0; turn < 4; turn += 1) state = takeout(strip(state, ["S1"]));
+    expect(project(state)).toMatchObject({ target: 122, homebase: 122, remaining: 122, dartsLeft: 12 });
+  });
+
+  it("spends the fourth Turn on a bust, then starts again at Homebase", () => {
+    let state = started121();
+    for (let turn = 0; turn < 3; turn += 1) state = takeout(strip(state, ["S1"]));
+    state = strip(state, ["T20", "T20"]);
+    expect(project(state)).toMatchObject({ busted: true, turnsLeft: 0, dartsLeft: 0, target: 121 });
+    state = takeout(state);
+    expect(project(state)).toMatchObject({ target: 121, homebase: 121, remaining: 121, busted: false, dartsLeft: 12 });
+  });
+
+  it("does not advance on Next score", () => {
+    expect(reduceGame(started121(), { type: "skip" })).toEqual(started121());
   });
 });

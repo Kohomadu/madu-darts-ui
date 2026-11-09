@@ -14,6 +14,7 @@ import { useAutodarts } from "./autodarts/useAutodarts";
 import type { ConnectionPhase } from "./autodarts/view";
 import { Board } from "./board/Board";
 import { checkoutRoute, openRouteSlots, shownRemaining } from "./game/checkout";
+import { formatHighScore } from "./game/highScore";
 import { scoreSegment } from "./game/rules";
 import { canUndoTurn, useGame } from "./game/useGame";
 import { SegmentPad } from "./override/SegmentPad";
@@ -281,14 +282,23 @@ export function App() {
             <span key={index} className={index < view.hits.length ? "pip on" : "pip"} />
           ))}
         </div>
+        {game.phase === "playing" && game.game === "121" ? (
+          <p className="secondary">Homebase {game.homebase}</p>
+        ) : null}
         {game.phase === "playing" || game.phase === "complete" ? (
           <p className="secondary">
             {game.phase === "playing"
-              ? `${countLabel(game.turnsLeft, "turn", "turns")} · ${countLabel(game.dartsLeft, "dart", "darts")} left · `
+              ? `${countLabel(game.turnsLeft, "turn", "turns")} · ${countLabel(game.dartsLeft, "dart", "darts")} left`
               : null}
-            {countLabel(game.checkouts, "checkout", "checkouts")} · high {game.highTarget}
+            {game.game === "101" ? (
+              <>
+                {game.phase === "playing" ? " · " : null}
+                {countLabel(game.checkouts, "checkout", "checkouts")} · high {game.highTarget}
+              </>
+            ) : null}
           </p>
         ) : null}
+        {game.phase !== "idle" ? <p className="secondary">{formatHighScore(game.highScore)}</p> : null}
       </header>
       {presence ? (
         <p className={`presence ${presence}`} role="status">
@@ -347,13 +357,16 @@ export function App() {
         </button>
         <button
           type="button"
-          disabled={!live || resetting || game.phase !== "playing"}
+          disabled={!live || resetting || game.phase !== "playing" || game.game !== "101"}
           onClick={() => void nextScore()}
         >
           Next score
         </button>
-        <button type="button" className="cta" onClick={() => game.start()}>
+        <button type="button" className="cta" onClick={() => game.start("101")}>
           Start 101
+        </button>
+        <button type="button" className="cta" onClick={() => game.start("121")}>
+          Start 121
         </button>
         {game.phase !== "idle" ? (
           <button type="button" onClick={() => game.abort()}>

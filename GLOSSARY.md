@@ -49,7 +49,7 @@ The first Training Game: start at remaining score 101; clear it in at most two T
 _Avoid_: X01 (too generic), checkout trainer (unless referring to the drill informally)
 
 **Abort**:
-Ending the current 101 run and returning to free practice. Hits already on the Board stay as the stream reports them. Nothing is added.
+Ending the current Training Game and returning to free practice. Hits already on the Board stay as the stream reports them. Nothing is added.
 _Avoid_: Reset board, Undo
 
 **Mute**:
@@ -63,3 +63,15 @@ _Avoid_: Hint, tip, obstacle path
 **Next score**:
 Abandoning the current 101 target for a fresh attempt at the next target, and asking the box to clear the Board. On 170 it ends the run. A failed reset does not advance the target.
 _Avoid_: Skip, bust
+
+**121**:
+A Training Game that starts at remaining 121 with four Turns (twelve darts) to finish on a double (Inner Bull counts). A bust restores remaining to the start of that Turn. Checkout in at most six darts raises the target by one and sets **Homebase** to that target; checkout on darts 7–12 raises the target by one without raising Homebase. Missing the twelve-dart clear returns the target to Homebase (never below 121).
+_Avoid_: Homebase trainer, X01
+
+**Homebase**:
+In **121**, the floor target the player falls back to after a missed twelve-dart clear. Raised only when a checkout lands in the first six darts.
+_Avoid_: Floor, baseline (as product terms for this value)
+
+**High Score**:
+Per Training Game, the best result recorded on this device: the highest meaningful score reached, when it was reached, and with how many darts. Shown for the active Training Game.
+_Avoid_: PB, record (alone)
