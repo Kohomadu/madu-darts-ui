@@ -15,7 +15,7 @@ The attempt stays open: the remaining score stays put, so a Manual Override can 
 - 3 darts left: impossible at 159, 162, 163, 165, 166, 168, 169, and anything over 170.
 - 4 or more darts left: a remaining score from 2 through 170 can still be finished, including those bogeys. Starting 159 with six darts does not show “Try again”.
 
-A bust, and a two-Turn attempt that ends without a checkout while the remaining score was still possible, keep today’s “Try again”. Takeout of a leave that already showed this overlay does not show it again. A Manual Override that creates the impossible remaining score shows it; one that restores a double does not. No failure cue on this path yet — that sound is the last item below.
+A bust, and a two-Turn attempt that ends without a checkout while the remaining score was still possible, keep today’s “Try again”. Takeout of a leave that already showed this overlay does not show it again. A Manual Override that creates the impossible remaining score shows it; one that restores a double does not.
 
 - [x] One dart left on a score with no double shows “Try again” before the Turn ends
 - [x] Two darts left on 99, 102, 103, 105, 106, 108, 109, or over 110 shows “Try again” before the Turn ends
@@ -38,7 +38,7 @@ The checkout bands use the remaining score at the start of the Turn that finishe
 - 61–100 cleared with 3 or fewer darts: “level-win”, on the finishing dart
 - Any other checkout (121, a finish under 61, or a band above cleared in fewer darts than its row requires) keeps the current checkout sting
 
-Busts use the remaining score before the dart that busted:
+Busts use the remaining score at the start of the Turn:
 
 - 61 or more: “epic fail”
 - Under 61: “universal failure trumpet”
@@ -49,18 +49,22 @@ When takeout after a checkout advances the target (101 to 102, and on up through
 
 When the impossible-checkout “Try again” appears, play “oni-chan-baka” once. That takeout does not also play the trumpet.
 
-- [ ] A 3-dart clear over 121 plays “orchestral win” on the finishing dart
-- [ ] A 3-dart clear of 101–120 plays “fatality”
-- [ ] A clear of 61–100 in three or fewer darts plays “level-win”
-- [ ] Other checkouts keep the current checkout sting
-- [ ] A bust from 61 or more plays “epic fail”; a bust from under 61 plays “universal failure trumpet”
-- [ ] A missed two-Turn clear that was still possible plays “universal failure trumpet”
-- [ ] Takeout that advances the target plays “Next level” instead of the chime
-- [ ] The impossible-checkout overlay plays “oni-chan-baka” once, and that takeout does not also play the trumpet
-- [ ] Mute silences the new cues; overlays still show; Undo and disconnect stay quiet
+- [x] A 3-dart clear over 121 plays “orchestral win” on the finishing dart
+- [x] A 3-dart clear of 101–120 plays “fatality”
+- [x] A clear of 61–100 in three or fewer darts plays “level-win”
+- [x] Other checkouts keep the current checkout sting
+- [x] A bust from 61 or more plays “epic fail”; a bust from under 61 plays “universal failure trumpet”
+- [x] A missed two-Turn clear that was still possible plays “universal failure trumpet”
+- [x] Takeout that advances the target plays “Next level” instead of the chime
+- [x] The impossible-checkout overlay plays “oni-chan-baka” once, and that takeout does not also play the trumpet
+- [x] Mute silences the new cues; overlays still show; Undo and disconnect stay quiet
 
 ## Comments
 
-Failure recognition is in. During 101, “Try again” shows on the Hit that leaves a remaining score the darts still left cannot finish. The score stays, so a Manual Override can repair it. Takeout of that leave does not show the overlay again. No new cue yet; “oni-chan-baka” is the sound section.
+Failure recognition is in. During 101, “Try again” shows on the Hit that leaves a remaining score the darts still left cannot finish. The score stays, so a Manual Override can repair it. Takeout of that leave does not show the overlay again.
+
+The Downloads cues are in `public/audio`. A 3-dart 101 plays fatality on the finishing dart, and takeout to 102 plays Next level. A bust that opens on 61 or more plays epic fail; one that opens under 61 plays the failure trumpet. An impossible leave plays oni-chan-baka once. Mute still shows the overlay and plays nothing.
+
+Checked in the browser against a local stand-in (port 3180 was not up). T20 S1 D20 on 101 requested fatality, and takeout requested Next level as the target became 102. T20 T20 on 102 requested epic fail. A later Turn that opened on 42 and bust requested the failure trumpet. S1 S2 leaving 39 with one dart left requested oni-chan-baka and showed “Try again”. With Mute on, the same kind of bust showed “Try again” and requested no file. Sound was turned back on, the run was aborted, and the shell is pointed back at `http://127.0.0.1:3180`.
 
 Checked in the browser against a local stand-in (port 3180 was not up). On 101, S20 S20 S20 left 41 with 3 darts and no overlay. After takeout, S1 left 40 with 2 darts and no overlay. The next S1 left 39 with 1 dart and showed “Try again” while those darts were still on the Board. Takeout restarted at 101 with no second overlay. T20 T20 still showed “Try again” for the bust. T20 S1 D20 showed “Checkout!” and takeout moved to 102. Free practice on 501 with three treble 20s showed no overlay. The two-dart and three-dart bogeys are covered by the route and cue tests. The shell is pointed back at `http://127.0.0.1:3180`.

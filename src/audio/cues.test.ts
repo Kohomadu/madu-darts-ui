@@ -58,7 +58,7 @@ describe("practice cues", () => {
     expect(planCues(thrown, clearedWithoutTakeout)).toEqual([]);
   });
 
-  it("plays the checkout cue when the finishing double lands, and only a chime when those darts leave", () => {
+  it("plays fatality for a 3-dart 101, and Next level when takeout moves the target", () => {
     const started = playing();
     const open = strip(started, ["T20", "S1"]);
     const checkout = strip(open, ["T20", "S1", "D20"]);
@@ -67,12 +67,12 @@ describe("practice cues", () => {
     const finishing = frame([hit("T20", 0), hit("S1", 1), hit("D20", 2)], checkout);
     const taken = frame([], after, { event: "takeoutFinished" });
 
-    expect(planMoment(before, finishing)).toEqual({ cues: ["thump", "win"], overlay: "checkout" });
-    expect(planMoment(finishing, taken)).toEqual({ cues: ["chime"], overlay: null });
+    expect(planMoment(before, finishing)).toEqual({ cues: ["thump", "fatality"], overlay: "checkout" });
+    expect(planMoment(finishing, taken)).toEqual({ cues: ["next-level"], overlay: null });
     expect(planCues(taken, frame([hit("S1", 0)], after))).toEqual(["thump"]);
   });
 
-  it("plays fail once for a bust, and only a chime when those darts are later removed", () => {
+  it("plays epic fail for a bust that opened on 61 or more, and only a chime when those darts leave", () => {
     const started = playing();
     const first = strip(started, ["T20"]);
     const bust = strip(first, ["T20", "T20"]);
@@ -81,11 +81,11 @@ describe("practice cues", () => {
     const busted = frame([hit("T20", 0), hit("T20", 1)], bust);
     const removed = frame([], confirmed, { event: "takeoutFinished" });
 
-    expect(planMoment(live, busted)).toEqual({ cues: ["thump", "fail"], overlay: "try-again" });
+    expect(planMoment(live, busted)).toEqual({ cues: ["thump", "epic-fail"], overlay: "try-again" });
     expect(planCues(busted, removed)).toEqual(["chime"]);
   });
 
-  it("plays fail once when two Turns do not clear the target", () => {
+  it("plays the failure trumpet when two Turns do not clear a score that was still possible", () => {
     let state = strip(playing(), ["T20"]);
     state = strip(state, []);
     const beforeSecond = state;
@@ -98,7 +98,7 @@ describe("practice cues", () => {
     const taken = frame([], failed, { event: "takeoutFinished" });
 
     expect(beforeSecond.target).toBe(101);
-    expect(planMoment(thrown, taken)).toEqual({ cues: ["fail", "chime"], overlay: "try-again" });
+    expect(planMoment(thrown, taken)).toEqual({ cues: ["failure-trumpet", "chime"], overlay: "try-again" });
     expect(planCues(taken, frame([], failed, { event: "throw" }))).toEqual([]);
   });
 
@@ -114,7 +114,7 @@ describe("practice cues", () => {
     const dropped = frame([hit("S1", 0)], done, { connected: false });
 
     expect(done.phase).toBe("complete");
-    expect(planMoment(before, finishing)).toEqual({ cues: ["thump", "win"], overlay: "checkout" });
+    expect(planMoment(before, finishing)).toEqual({ cues: ["thump", "orchestral-win"], overlay: "checkout" });
     expect(planCues(finishing, taken)).toEqual(["chime"]);
     expect(planCues(taken, dropped)).toEqual([]);
     expect(planCues(dropped, frame([hit("S1", 0), hit("S5", 1)], done))).toEqual([]);
@@ -125,7 +125,7 @@ describe("practice cues", () => {
     const busted = strip(started, ["T20", "T20", "T20"]);
     const empty = frame([], started);
     const restored = frame([hit("T20", 0), hit("T20", 1), hit("T20", 2)], busted);
-    expect(planCues(empty, restored)).toEqual(["thump", "thump", "thump", "fail"]);
+    expect(planCues(empty, restored)).toEqual(["thump", "thump", "thump", "epic-fail"]);
     expect(audibleCues(empty, restored, true)).toEqual([]);
   });
 
@@ -161,7 +161,7 @@ describe("practice cues", () => {
 
     expect(project(three)).toMatchObject({ remaining: 159, dartsLeft: 3, busted: false });
     expect(planMoment(frame([hit("S1", 0), hit("S1", 1)], two), frame([hit("S1", 0), hit("S1", 1), hit("S1", 2)], three))).toEqual({
-      cues: ["thump"],
+      cues: ["thump", "oni-chan-baka"],
       overlay: "try-again",
     });
     expect(planMoment(frame([hit("S1", 0), hit("S1", 1), hit("S1", 2)], three), frame([], taken, { event: "takeoutFinished" }))).toEqual({
@@ -180,7 +180,7 @@ describe("practice cues", () => {
     expect(project(odd)).toMatchObject({ remaining: 39, dartsLeft: 1 });
     expect(project(even)).toMatchObject({ remaining: 20, dartsLeft: 1 });
     expect(planMoment(frame([hit("S1", 0)], setup), frame([hit("S1", 0), hit("S1", 1)], odd))).toEqual({
-      cues: ["thump"],
+      cues: ["thump", "oni-chan-baka"],
       overlay: "try-again",
     });
     expect(planMoment(frame([hit("S1", 0)], setup), frame([hit("S1", 0), hit("S20", 1)], even))).toEqual({
@@ -198,7 +198,7 @@ describe("practice cues", () => {
 
     expect(project(stuck)).toMatchObject({ remaining: 119, dartsLeft: 2, busted: false });
     expect(planMoment(frame([], state), frame([hit("M20", 0)], stuck))).toEqual({
-      cues: ["thump"],
+      cues: ["thump", "oni-chan-baka"],
       overlay: "try-again",
     });
     expect(project(taken)).toMatchObject({ target: 119, remaining: 119, dartsLeft: 6 });
@@ -225,12 +225,42 @@ describe("practice cues", () => {
     const impossible = strip(setup, ["S1", "S19"]);
 
     expect(planMoment(frame([hit("S1", 0), hit("S20", 1)], possible), frame([hit("S1", 0), hit("S19", 1.2)], impossible))).toEqual({
-      cues: [],
+      cues: ["oni-chan-baka"],
       overlay: "try-again",
     });
     expect(planMoment(frame([hit("S1", 0), hit("S19", 1)], impossible), frame([hit("S1", 0), hit("S20", 1.2)], possible))).toEqual({
       cues: [],
       overlay: null,
     });
+  });
+
+  it("plays level-win for a checkout from 61 to 100, and the old sting below that", () => {
+    const at80: GameState = { ...playing(), target: 80 };
+    const open = strip(at80, ["T20"]);
+    const checkout = strip(open, ["T20", "D10"]);
+    expect(planMoment(frame([hit("T20", 0)], open), frame([hit("T20", 0), hit("D10", 1)], checkout))).toEqual({
+      cues: ["thump", "level-win"],
+      overlay: "checkout",
+    });
+
+    const at40: GameState = { ...playing(), target: 40 };
+    const low = strip(at40, ["D20"]);
+    expect(planMoment(frame([], at40), frame([hit("D20", 0)], low)).cues).toEqual(["thump", "win"]);
+
+    const at121: GameState = { ...playing(), target: 121 };
+    const two = strip(at121, ["T20", "T11"]);
+    const out = strip(two, ["T20", "T11", "D14"]);
+    expect(planMoment(frame([hit("T20", 0), hit("T11", 1)], two), frame([hit("T20", 0), hit("T11", 1), hit("D14", 2)], out)).cues).toEqual([
+      "thump",
+      "win",
+    ]);
+  });
+
+  it("plays the failure trumpet when the Turn opened under 61", () => {
+    let state = strip(playing(), ["S20", "S20", "S20"]);
+    state = strip(state, []);
+    const bust = strip(state, ["T20"]);
+    expect(project(bust)).toMatchObject({ busted: true, target: 101 });
+    expect(planMoment(frame([], state), frame([hit("T20", 0)], bust)).cues).toEqual(["thump", "failure-trumpet"]);
   });
 });

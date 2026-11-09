@@ -1,9 +1,19 @@
 import { cannotCheckout, PRACTICE_VISIT, shownRemaining } from "../game/checkout";
-import { project, scoreSegment, type GameState } from "../game/rules";
+import { project, scoreAttempt, scoreSegment, type GameState } from "../game/rules";
 import type { Hit } from "../autodarts/parse";
 
 /** Short cues on the practice shell. One sound each; never queued across a blocked gesture. */
-export type Cue = "thump" | "chime" | "win" | "fail";
+export type Cue =
+  | "thump"
+  | "chime"
+  | "win"
+  | "orchestral-win"
+  | "fatality"
+  | "level-win"
+  | "epic-fail"
+  | "failure-trumpet"
+  | "next-level"
+  | "oni-chan-baka";
 
 export type OutcomeOverlay = "checkout" | "try-again";
 
@@ -55,6 +65,21 @@ function hopelessLeave(game: GameState): boolean {
   return cannotCheckout(view.remaining, view.dartsLeft);
 }
 
+/** Remaining score when this Turn's darts were still in hand. */
+function openingScore(game: GameState): number {
+  if (game.phase !== "playing") return PRACTICE_VISIT;
+  const prior = scoreAttempt(game.target, game.sealed.flat());
+  return prior.kind === "open" ? prior.remaining : game.target;
+}
+
+/** The score this Turn cleared, and how many darts it took. */
+function checkoutCue(score: number, darts: number): Cue {
+  if (darts === 3 && score > 121) return "orchestral-win";
+  if (darts === 3 && score >= 101 && score <= 120) return "fatality";
+  if (darts <= 3 && score >= 61 && score <= 100) return "level-win";
+  return "win";
+}
+
 function finishesOnDouble(prev: Observation, next: Observation): boolean {
   if (next.hits.length === 0) return false;
   const before = visibleRemaining(prev.game, prev.hits);
@@ -84,10 +109,15 @@ export function planMoment(prev: Observation | null, next: Observation): Practic
   const failed = sealed && attemptRestarted(prev.game, next.game) && !hopelessBefore;
   const checkout = finishesOnDouble(prev, next);
   const hopeless = !checkout && !busted && hopelessLeave(next.game) && !hopelessBefore;
+  const advanced =
+    sealed && prev.game.phase === "playing" && next.game.phase === "playing" && next.game.target === prev.game.target + 1;
 
-  if (checkout) cues.push("win");
-  else if (busted || failed) cues.push("fail");
-  if (sealed) cues.push("chime");
+  if (checkout) cues.push(checkoutCue(openingScore(next.game), next.hits.length));
+  else if (busted) cues.push(openingScore(next.game) >= 61 ? "epic-fail" : "failure-trumpet");
+  else if (failed) cues.push("failure-trumpet");
+  else if (hopeless) cues.push("oni-chan-baka");
+  if (advanced) cues.push("next-level");
+  else if (sealed) cues.push("chime");
 
   const overlay: OutcomeOverlay | null = checkout ? "checkout" : busted || failed || hopeless ? "try-again" : null;
   return { cues, overlay };
