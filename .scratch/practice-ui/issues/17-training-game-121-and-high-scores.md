@@ -12,7 +12,7 @@
 
 ### High Score (every Training Game)
 
-For **each** Training Game (**101**, **121**, and any future games), persist a **High Score** record: the highest meaningful score reached in that game, **when** it was reached (timestamp), and **with how many darts** that high was achieved. For **121**, the meaningful score is the highest target/remaining-start reached during climb (the “high number” in rule 5). For **101**, use the highest target cleared or reached consistently with existing 101 session stats. Show the High Score on the shell when that game is active (and/or on start). Update the record only when beaten.
+For **each** Training Game (**101**, **121**, and any future games), persist a **High Score** record: the highest meaningful score reached in that game, **when** it was reached (timestamp), and **how many darts were thrown in that run from Start until that score** (session total — so friends can compete on fewest darts to reach a point). For **121**, the meaningful score is the highest target/remaining-start reached during climb (the “high number” in rule 5). For **101**, use the highest target cleared or reached consistently with existing 101 session stats. Show the High Score on the shell when that game is active (and/or on start). Update when the score is higher, or the same score with fewer session darts.
 
 **Blocked by:** 03 — Training Game 101 (shared shell, scoring, overlays)
 
@@ -23,12 +23,12 @@ For **each** Training Game (**101**, **121**, and any future games), persist a *
 - [x] Checkout in ≤6 darts: target +1 and Homebase rises to that target; checkout in 7–12 darts: target +1 only
 - [x] Missed 12-dart clear: target returns to Homebase (floor 121); new attempt begins
 - [x] Current target/remaining and Homebase are shown separately
-- [x] Each Training Game has a persisted High Score (value, when, darts); 121 and 101 both update and display it
+- [x] Each Training Game has a persisted High Score (value, when, session darts from Start); 121 and 101 both update and display it
 
 ## Comments
 
 121 starts at remaining 121 with Homebase 121 and four Turns. A bust puts the remaining score back to the start of that Turn and still spends the Turn’s three darts. Checkout in the first two Turns raises the target and Homebase; checkout on Turn 3 or 4 raises only the target. Twelve darts without a finish returns the target to Homebase, never below 121. Next score stays a 101 control.
 
-Each Training Game keeps its own High Score on this device: the score, when it was reached, and how many darts that checkout took. It updates only when the score is higher. 101 records the target reached after a checkout, the same number the run already calls its high.
+Each Training Game keeps its own High Score on this device: the score, when it was reached, and how many darts were thrown from Start until that score. It updates when the score is higher, or the same score with fewer session darts. 101 records the target reached after a checkout, the same number the run already calls its high.
 
 Checked in the browser with port 3180 down. Start 121 showed Target 121, Remaining 121, Homebase 121, 4 turns, 12 darts, and High Score —. Start 101 showed the usual two Turns and six darts, plus High Score —. Busts, Homebase, and the saved record are covered by the scoring tests.

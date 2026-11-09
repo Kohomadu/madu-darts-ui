@@ -73,5 +73,9 @@ In **121**, the floor target the player falls back to after a missed twelve-dart
 _Avoid_: Floor, baseline (as product terms for this value)
 
 **High Score**:
-Per Training Game, the best result recorded on this device: the highest meaningful score reached, when it was reached, and with how many darts. Shown for the active Training Game.
+Per Training Game, the best result recorded on this device: the highest meaningful score reached, when it was reached, and how many darts were thrown in that run from Start until that score (so friends can compare fewest darts). Same score with fewer darts beats the earlier record.
 _Avoid_: PB, record (alone)
+
+**Parked run**:
+A playing Training Game’s progress kept on this device (including across reloads) while another Training Game is active, so Start 101 / Start 121 can switch without losing where you left off. The active run is saved the same way. Restarting the same game after confirm discards that progress; Abort clears the active run.
+_Avoid_: Save slot, checkpoint

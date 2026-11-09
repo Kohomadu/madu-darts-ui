@@ -16,11 +16,12 @@ function memory(): Storage {
 }
 
 describe("High Score", () => {
-  it("saves a higher score and keeps the earlier one when it is not beaten", () => {
-    const first = beatHighScore(null, 122, 6, 1_700_000_000_000);
-    expect(first).toEqual({ score: 122, darts: 6, at: 1_700_000_000_000 });
-    expect(beatHighScore(first, 122, 3, 1_800_000_000_000)).toBe(first);
-    expect(beatHighScore(first, 130, 9, 1_800_000_000_000)).toEqual({ score: 130, darts: 9, at: 1_800_000_000_000 });
+  it("saves a higher score, or the same score with fewer session darts", () => {
+    const first = beatHighScore(null, 122, 60, 1_700_000_000_000);
+    expect(first).toEqual({ score: 122, darts: 60, at: 1_700_000_000_000 });
+    expect(beatHighScore(first, 122, 80, 1_800_000_000_000)).toBe(first);
+    expect(beatHighScore(first, 122, 48, 1_800_000_000_000)).toEqual({ score: 122, darts: 48, at: 1_800_000_000_000 });
+    expect(beatHighScore(first, 130, 356, 1_800_000_000_000)).toEqual({ score: 130, darts: 356, at: 1_800_000_000_000 });
     expect(beatHighScore(null, 102, 0, 1)).toBeNull();
   });
 

@@ -15,7 +15,8 @@ import type { ConnectionPhase } from "./autodarts/view";
 import { Board } from "./board/Board";
 import { checkoutRoute, openRouteSlots, shownRemaining } from "./game/checkout";
 import { formatHighScore } from "./game/highScore";
-import { scoreSegment } from "./game/rules";
+import { restartSameGameMessage } from "./game/parkedRun";
+import { scoreSegment, type TrainingGameId } from "./game/rules";
 import { canUndoTurn, useGame } from "./game/useGame";
 import { SegmentPad } from "./override/SegmentPad";
 import { presenceLabel, recoveryCopy, shellPresence } from "./shell/presence";
@@ -118,6 +119,15 @@ export function App() {
     }, 3000);
     return () => window.clearTimeout(timer);
   }, [game.moment]);
+
+  function requestStart(next: TrainingGameId) {
+    if (game.phase === "playing" && game.game === next) {
+      if (!window.confirm(restartSameGameMessage(next))) return;
+      game.start(next, { replaceSame: true });
+      return;
+    }
+    game.start(next);
+  }
 
   function toggleMute() {
     const next = !muted;
@@ -367,10 +377,10 @@ export function App() {
         >
           Next score
         </button>
-        <button type="button" className="cta" onClick={() => game.start("101")}>
+        <button type="button" className="cta" onClick={() => requestStart("101")}>
           Start 101
         </button>
-        <button type="button" className="cta" onClick={() => game.start("121")}>
+        <button type="button" className="cta" onClick={() => requestStart("121")}>
           Start 121
         </button>
         {game.phase !== "idle" ? (

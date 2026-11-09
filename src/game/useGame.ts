@@ -8,9 +8,20 @@ import {
   writeHighScore,
   type HighScoreRecord,
 } from "./highScore";
+import {
+  clearParkedRun,
+  cloneParkedState,
+  parkPlayingRun,
+  progressSnapshot,
+  readPersistedProgress,
+  takeParkedRun,
+  writePersistedProgress,
+  type ParkedRuns,
+} from "./parkedRun";
 import { idleGame, project, reduceGame, type GameProjection, type GameState, type TrainingGameId } from "./rules";
 import { decideScoreSync } from "./scoreSync";
 import { emptySession, freshSession, noteCheckout, noteUndo, type SessionStats } from "./session";
+import { newThrownDarts } from "./sessionDarts";
 
 export type OutcomeMoment = { id: number; kind: "checkout" | "try-again" };
 
@@ -45,24 +56,27 @@ function isTakeout(view: PracticeView): boolean {
 }
 
 function cloneGame(state: GameState): GameState {
-  return {
-    ...state,
-    live: state.live.map((dart) => ({ ...dart })),
-    sealed: state.sealed.map((turn) => turn.map((dart) => ({ ...dart }))),
-  };
+  return cloneParkedState(state);
 }
 
-function checkoutAchievement(prev: GameState, next: GameState): { game: TrainingGameId; score: number; darts: number } | null {
+function checkoutAchievement(
+  prev: GameState,
+  next: GameState,
+  sessionDarts: number,
+): { game: TrainingGameId; score: number; darts: number } | null {
   if (prev.phase !== "playing") return null;
   if (!(next.target > prev.target || next.phase === "complete")) return null;
-  const priorTurns = prev.game === "121" ? prev.turnsUsed : prev.sealed.length;
-  const darts = priorTurns * 3 + prev.live.length;
-  if (darts < 1) return null;
-  return { game: prev.game, score: next.target, darts };
+  if (sessionDarts < 1) return null;
+  return { game: prev.game, score: next.target, darts: sessionDarts };
 }
 
+export type StartGameOptions = {
+  /** Confirmed restart of the same Training Game — discard that run's progress. */
+  replaceSame?: boolean;
+};
+
 export function useGame(view: PracticeView): GameProjection & {
-  start: (game?: TrainingGameId) => void;
+  start: (game?: TrainingGameId, options?: StartGameOptions) => void;
   sealedVisit: SealedVisit | null;
   restoreVisit: (visit: SealedVisit) => void;
   skip: () => void;
@@ -74,9 +88,14 @@ export function useGame(view: PracticeView): GameProjection & {
   highScore: HighScoreRecord | null;
   moment: OutcomeMoment | null;
 } {
-  const [state, setState] = useState(idleGame);
+  const restored = useRef(readPersistedProgress(localStorage));
+  const [state, setState] = useState(() =>
+    restored.current.active ? cloneParkedState(restored.current.active.state) : idleGame(),
+  );
   const [sealedVisit, setSealedVisit] = useState<SealedVisit | null>(null);
-  const [stats, setStats] = useState<SessionStats>(emptySession);
+  const [stats, setStats] = useState<SessionStats>(() =>
+    restored.current.active ? restored.current.active.stats : emptySession(),
+  );
   const [highScores, setHighScores] = useState(() => ({
     "101": readHighScore(localStorage, "101"),
     "121": readHighScore(localStorage, "121"),
@@ -85,6 +104,7 @@ export function useGame(view: PracticeView): GameProjection & {
   const momentSerial = useRef(0);
   const statsRef = useRef(stats);
   const stateRef = useRef<GameState>(state);
+  const parksRef = useRef<ParkedRuns>(restored.current.parks);
   const lastKey = useRef<string | null>(null);
   const prevView = useRef<PracticeView | null>(null);
   const visitBaseline = useRef<GameState | null>(null);
@@ -92,6 +112,8 @@ export function useGame(view: PracticeView): GameProjection & {
   const skipping = useRef(false);
   const paused = useRef(false);
   const forceSync = useRef(false);
+  /** Hits thrown since Start for this Training Game run (for High Score competition). */
+  const sessionDarts = useRef(restored.current.active?.sessionDarts ?? 0);
   const [syncTick, setSyncTick] = useState(0);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -106,8 +128,15 @@ export function useGame(view: PracticeView): GameProjection & {
     setStats(next);
   }
 
+  function persistProgress() {
+    writePersistedProgress(
+      localStorage,
+      progressSnapshot(parksRef.current, stateRef.current, statsRef.current, sessionDarts.current),
+    );
+  }
+
   function rememberHigh(prev: GameState, next: GameState) {
-    const achieved = checkoutAchievement(prev, next);
+    const achieved = checkoutAchievement(prev, next, sessionDarts.current);
     if (!achieved) return;
     setHighScores((current) => {
       const record = beatHighScore(current[achieved.game], achieved.score, achieved.darts, Date.now());
@@ -116,6 +145,25 @@ export function useGame(view: PracticeView): GameProjection & {
       writeHighScore(localStorage, achieved.game, record);
       return { ...current, [achieved.game]: record };
     });
+  }
+
+  function activateRun(nextGame: GameState, nextStats: SessionStats, prevGame: GameState, current: PracticeView) {
+    const connected = isConnected(current);
+    visitBaseline.current = current.hits.length > 0 && connected ? cloneGame(nextGame) : null;
+    setSealedVisit(null);
+    const scored = reduceGame(nextGame, {
+      type: "strip",
+      hits: current.hits,
+      connected,
+    });
+    applyStats(noteCheckout(nextStats, nextGame, scored));
+    rememberHigh(nextGame, scored);
+    stateRef.current = scored;
+    lastKey.current = stripKey(current);
+    setState(scored);
+    persistProgress();
+    emitPracticeCues({ ...current, hits: [] }, prevGame, current, scored);
+    prevView.current = current;
   }
 
   useEffect(() => {
@@ -143,6 +191,10 @@ export function useGame(view: PracticeView): GameProjection & {
     const prevHits = previousView?.hits ?? [];
     const connected = isConnected(view);
 
+    if (!skipBaseline && prevGame.phase === "playing") {
+      sessionDarts.current += newThrownDarts(prevHits.length, view.hits.length);
+    }
+
     if (!skipBaseline && prevHits.length === 0 && view.hits.length > 0) {
       visitBaseline.current = cloneGame(prevGame);
     }
@@ -168,6 +220,7 @@ export function useGame(view: PracticeView): GameProjection & {
       setMoment({ id: momentSerial.current, kind: overlay });
     }
     setState(nextGame);
+    persistProgress();
     emitPracticeCues(previousView, prevGame, view, nextGame);
     prevView.current = view;
   }, [view, syncTick]);
@@ -189,6 +242,7 @@ export function useGame(view: PracticeView): GameProjection & {
       applyStats(noteUndo(statsRef.current, prev, next));
       setSealedVisit(null);
       setState(next);
+      persistProgress();
     },
     skip() {
       const fresh = reduceGame(stateRef.current, { type: "skip" });
@@ -204,17 +258,21 @@ export function useGame(view: PracticeView): GameProjection & {
       prevView.current = { ...current, hits: [] };
       setSealedVisit(null);
       setState(scored);
+      persistProgress();
       setSyncTick((tick) => tick + 1);
     },
     abort() {
       if (stateRef.current.phase === "idle") return;
+      parksRef.current = clearParkedRun(parksRef.current, stateRef.current.game);
       const next = reduceGame(stateRef.current, { type: "abort" });
       stateRef.current = next;
       visitBaseline.current = null;
       skipping.current = true;
+      sessionDarts.current = 0;
       setSealedVisit(null);
       applyStats(emptySession());
       setState(next);
+      persistProgress();
     },
     pauseScoring() {
       paused.current = true;
@@ -224,25 +282,29 @@ export function useGame(view: PracticeView): GameProjection & {
       forceSync.current = true;
       setSyncTick((tick) => tick + 1);
     },
-    start(game: TrainingGameId = "101") {
+    start(game: TrainingGameId = "101", options: StartGameOptions = {}) {
       const current = viewRef.current;
       const prevGame = stateRef.current;
+      let parks = parksRef.current;
+
+      if (options.replaceSame && prevGame.phase === "playing" && prevGame.game === game) {
+        parks = clearParkedRun(parks, game);
+      } else if (prevGame.phase === "playing" && prevGame.game !== game) {
+        parks = parkPlayingRun(parks, prevGame, statsRef.current, sessionDarts.current);
+      }
+
+      const taken = takeParkedRun(parks, game);
+      parksRef.current = taken.parks;
+
+      if (taken.run && !options.replaceSame) {
+        sessionDarts.current = taken.run.sessionDarts;
+        activateRun(cloneParkedState(taken.run.state), taken.run.stats, prevGame, current);
+        return;
+      }
+
       const started = reduceGame(idleGame(), { type: "start", game });
-      const connected = isConnected(current);
-      const nextGame = reduceGame(started, {
-        type: "strip",
-        hits: current.hits,
-        connected,
-      });
-      visitBaseline.current = current.hits.length > 0 && connected ? started : null;
-      setSealedVisit(null);
-      applyStats(noteCheckout(freshSession(started.target), started, nextGame));
-      rememberHigh(started, nextGame);
-      stateRef.current = nextGame;
-      lastKey.current = stripKey(current);
-      setState(nextGame);
-      emitPracticeCues(prevView.current, prevGame, current, nextGame);
-      prevView.current = current;
+      sessionDarts.current = current.hits.length > 0 && isConnected(current) ? current.hits.length : 0;
+      activateRun(started, freshSession(started.target), prevGame, current);
     },
   };
 }
