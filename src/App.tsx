@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { readMuted, writeMuted } from "./audio/mute";
 import { setCuesMuted, unlockAudio } from "./audio/play";
 import { useAccuracy } from "./accuracy/useAccuracy";
@@ -54,6 +54,7 @@ export function App() {
   const [pickIndex, setPickIndex] = useState<number | null>(null);
   const [overrideError, setOverrideError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  const nextScoreBusy = useRef(false);
   const [boardNote, setBoardNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [muted, setMuted] = useState(() => {
     const saved = readMuted(localStorage);
@@ -166,22 +167,26 @@ export function App() {
   }
 
   async function nextScore() {
-    if (!live || resetting || game.phase !== "playing") return;
+    if (!live || nextScoreBusy.current || game.phase !== "playing") return;
+    nextScoreBusy.current = true;
     setResetting(true);
     game.pauseScoring();
     holdEmpty();
-    const result = await resetBoard();
-    if (!result.ok) {
-      releaseHold();
-      game.resumeScoring();
+    try {
+      const result = await resetBoard();
+      if (!result.ok) {
+        releaseHold();
+        game.resumeScoring();
+        setBoardNote({ ok: false, text: result.message });
+        return;
+      }
+      game.skip();
+      setPickIndex(null);
+      setBoardNote({ ok: true, text: "Next score" });
+    } finally {
+      nextScoreBusy.current = false;
       setResetting(false);
-      setBoardNote({ ok: false, text: result.message });
-      return;
     }
-    game.skip();
-    setResetting(false);
-    setPickIndex(null);
-    setBoardNote({ ok: true, text: "Next score" });
   }
 
   async function resetTheBoard() {

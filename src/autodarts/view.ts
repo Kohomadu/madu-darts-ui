@@ -17,8 +17,13 @@ export type PracticeView = {
    * keep showing these Hits. A new dart from the stream abandons the edit.
    */
   reviewHits: Hit[] | null;
-  /** After Next score, keep the strip empty until Autodarts itself reports no Hits. */
+  /**
+   * After Next score, hide the visit that was already on the Board.
+   * An empty Board does not stay hidden: the next visit has to score.
+   */
   holdEmpty: boolean;
+  /** Stream hits suppressed by Next score. Empty when the Board was already clear. */
+  suppressedHits: Hit[];
 };
 
 export type PracticeEvent =
@@ -43,6 +48,7 @@ export function connectingView(): PracticeView {
     localOverrides: {},
     reviewHits: null,
     holdEmpty: false,
+    suppressedHits: [],
   };
 }
 
@@ -75,6 +81,7 @@ export function applySnapshot(
     localOverrides: merged.localOverrides,
     reviewHits: null,
     holdEmpty: false,
+    suppressedHits: [],
   };
 }
 
@@ -89,7 +96,18 @@ export function pauseView(view: PracticeView): PracticeView {
     localOverrides: view.localOverrides,
     reviewHits: view.reviewHits,
     holdEmpty: view.holdEmpty,
+    suppressedHits: view.suppressedHits,
   };
+}
+
+function sameHit(a: Hit, b: Hit): boolean {
+  return a.segmentName === b.segmentName && a.coordsX === b.coordsX && a.coordsY === b.coordsY;
+}
+
+/** True while this snapshot is still the visit Next score is discarding. */
+function isSuppressedVisit(held: Hit[], incoming: Hit[]): boolean {
+  if (incoming.length === 0 || incoming.length > held.length) return false;
+  return incoming.every((hit, index) => sameHit(hit, held[index]));
 }
 
 export function reducePractice(view: PracticeView, event: PracticeEvent): PracticeView {
@@ -97,19 +115,19 @@ export function reducePractice(view: PracticeView, event: PracticeEvent): Practi
     case "connecting":
       return connectingView();
     case "snapshot": {
+      if (view.holdEmpty && isSuppressedVisit(view.suppressedHits, event.snapshot.hits)) {
+        return {
+          ...view,
+          phase: event.via,
+          status: event.snapshot.status,
+          event: event.snapshot.event,
+          streamHits: event.snapshot.hits,
+          hits: [],
+          reviewHits: null,
+          localOverrides: {},
+        };
+      }
       if (view.holdEmpty) {
-        if (event.snapshot.hits.length > 0) {
-          return {
-            ...view,
-            phase: event.via,
-            status: event.snapshot.status,
-            event: event.snapshot.event,
-            streamHits: event.snapshot.hits,
-            hits: [],
-            reviewHits: null,
-            localOverrides: {},
-          };
-        }
         return applySnapshot(event.snapshot, event.via);
       }
       if (view.reviewHits && event.snapshot.hits.length === 0) {
@@ -142,7 +160,7 @@ export function reducePractice(view: PracticeView, event: PracticeEvent): Practi
     }
     case "restore-turn": {
       const reviewHits = event.hits.map((hit) => ({ ...hit }));
-      return { ...view, reviewHits, hits: reviewHits, localOverrides: {}, holdEmpty: false };
+      return { ...view, reviewHits, hits: reviewHits, localOverrides: {}, holdEmpty: false, suppressedHits: [] };
     }
     case "finish-review": {
       if (!view.reviewHits) return view;
@@ -162,6 +180,7 @@ export function reducePractice(view: PracticeView, event: PracticeEvent): Practi
       return {
         ...view,
         holdEmpty: true,
+        suppressedHits: view.streamHits.map((hit) => ({ ...hit })),
         hits: [],
         reviewHits: null,
         localOverrides: {},
@@ -171,6 +190,7 @@ export function reducePractice(view: PracticeView, event: PracticeEvent): Practi
       return {
         ...view,
         holdEmpty: false,
+        suppressedHits: [],
         hits: view.streamHits.map((hit) => ({ ...hit })),
         reviewHits: null,
         localOverrides: {},

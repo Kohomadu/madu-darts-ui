@@ -286,6 +286,29 @@ describe("connection", () => {
     expect(cleared.hits).toEqual([]);
   });
 
+  it("scores a new visit when Next score started on an empty Board", () => {
+    const empty = reducePractice(connectingView(), {
+      type: "snapshot",
+      snapshot: parseState({ status: "throw", event: "waiting" })!,
+      via: "live",
+    });
+    const held = reducePractice(empty, { type: "hold-empty" });
+    expect(held.holdEmpty).toBe(true);
+    expect(held.suppressedHits).toEqual([]);
+
+    const thrown = reducePractice(held, {
+      type: "snapshot",
+      snapshot: parseState({
+        status: "throw",
+        event: "throwDetected",
+        throws: [{ segmentName: "T20", coordsX: 1, coordsY: 2 }],
+      })!,
+      via: "live",
+    });
+    expect(thrown.holdEmpty).toBe(false);
+    expect(thrown.hits.map((hit) => hit.segmentName)).toEqual(["T20"]);
+  });
+
   it("puts the stream Hits back when Next score did not reset the Board", () => {
     const live = reducePractice(connectingView(), {
       type: "snapshot",

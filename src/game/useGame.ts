@@ -9,6 +9,7 @@ import {
   type HighScoreRecord,
 } from "./highScore";
 import { idleGame, project, reduceGame, type GameProjection, type GameState, type TrainingGameId } from "./rules";
+import { decideScoreSync } from "./scoreSync";
 import { emptySession, freshSession, noteCheckout, noteUndo, type SessionStats } from "./session";
 
 export type OutcomeMoment = { id: number; kind: "checkout" | "try-again" };
@@ -119,29 +120,33 @@ export function useGame(view: PracticeView): GameProjection & {
 
   useEffect(() => {
     const key = stripKey(view);
-    if (paused.current && !skipping.current) {
-      if (lastKey.current === key) return;
-      lastKey.current = key;
-      prevView.current = view;
-      return;
-    }
+    const decision = decideScoreSync(
+      {
+        paused: paused.current,
+        skipping: skipping.current,
+        force: forceSync.current,
+        lastKey: lastKey.current,
+      },
+      key,
+    );
+    paused.current = decision.sync.paused;
+    skipping.current = decision.sync.skipping;
+    forceSync.current = decision.sync.force;
+    lastKey.current = decision.sync.lastKey;
+    if (!decision.apply) return;
+
     const skipBaseline = restoring.current;
-    const skipped = skipping.current;
-    const force = forceSync.current;
     restoring.current = false;
-    skipping.current = false;
-    forceSync.current = false;
-    paused.current = false;
-    if (!force && lastKey.current === key) return;
-    lastKey.current = key;
     const prevGame = stateRef.current;
-    const prevHits = prevView.current?.hits ?? [];
+    // Next score already replaced the attempt. Don't narrate that as a takeout of the old visit.
+    const previousView = decision.skipped ? { ...view, hits: [] } : prevView.current;
+    const prevHits = previousView?.hits ?? [];
     const connected = isConnected(view);
 
     if (!skipBaseline && prevHits.length === 0 && view.hits.length > 0) {
       visitBaseline.current = cloneGame(prevGame);
     }
-    if (!skipped && prevHits.length > 0 && view.hits.length === 0 && connected) {
+    if (!decision.skipped && prevHits.length > 0 && view.hits.length === 0 && connected) {
       if (isTakeout(view) && visitBaseline.current) {
         remember({
           baseline: visitBaseline.current,
@@ -157,13 +162,13 @@ export function useGame(view: PracticeView): GameProjection & {
     stateRef.current = nextGame;
     applyStats(noteCheckout(statsRef.current, prevGame, nextGame));
     rememberHigh(prevGame, nextGame);
-    const overlay = outcomeOverlay(prevView.current, prevGame, view, nextGame);
+    const overlay = outcomeOverlay(previousView, prevGame, view, nextGame);
     if (overlay) {
       momentSerial.current += 1;
       setMoment({ id: momentSerial.current, kind: overlay });
     }
     setState(nextGame);
-    emitPracticeCues(prevView.current, prevGame, view, nextGame);
+    emitPracticeCues(previousView, prevGame, view, nextGame);
     prevView.current = view;
   }, [view, syncTick]);
 
@@ -186,12 +191,20 @@ export function useGame(view: PracticeView): GameProjection & {
       setState(next);
     },
     skip() {
-      const next = reduceGame(stateRef.current, { type: "skip" });
-      stateRef.current = next;
-      visitBaseline.current = null;
+      const fresh = reduceGame(stateRef.current, { type: "skip" });
+      const current = viewRef.current;
+      const connected = isConnected(current);
+      const scored = reduceGame(fresh, { type: "strip", hits: current.hits, connected });
+      stateRef.current = scored;
+      visitBaseline.current = current.hits.length > 0 && connected ? fresh : null;
+      paused.current = false;
       skipping.current = true;
+      forceSync.current = true;
+      lastKey.current = stripKey(current);
+      prevView.current = { ...current, hits: [] };
       setSealedVisit(null);
-      setState(next);
+      setState(scored);
+      setSyncTick((tick) => tick + 1);
     },
     abort() {
       if (stateRef.current.phase === "idle") return;
