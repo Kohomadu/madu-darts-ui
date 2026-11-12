@@ -3,14 +3,16 @@ import { draftFromSegment, PAD_NUMBERS, segmentNameFromDraft } from "./SegmentPa
 
 describe("Segment pad draft", () => {
   it("defaults a typed Hit into ring and number", () => {
-    expect(draftFromSegment("t20")).toEqual({ ring: "T", number: 20, bull: null });
-    expect(draftFromSegment("D16")).toEqual({ ring: "D", number: 16, bull: null });
-    expect(draftFromSegment("S5")).toEqual({ ring: "S", number: 5, bull: null });
+    expect(draftFromSegment("t20")).toEqual({ ring: "T", number: 20, bull: null, none: false });
+    expect(draftFromSegment("D16")).toEqual({ ring: "D", number: 16, bull: null, none: false });
+    expect(draftFromSegment("S5")).toEqual({ ring: "S", number: 5, bull: null, none: false });
   });
 
   it("recognises Bull and outer bull", () => {
-    expect(draftFromSegment("Bull")).toEqual({ ring: "S", number: null, bull: "Bull" });
-    expect(draftFromSegment("25")).toEqual({ ring: "S", number: null, bull: "25" });
+    expect(draftFromSegment("Bull")).toEqual({ ring: "S", number: null, bull: "Bull", none: false });
+    expect(draftFromSegment("25")).toEqual({ ring: "S", number: null, bull: "25", none: false });
+    expect(draftFromSegment("Miss")).toEqual({ ring: "S", number: null, bull: null, none: true });
+    expect(draftFromSegment("0")).toEqual({ ring: "S", number: null, bull: null, none: true });
   });
 
   it("lists 1 through 20 in numeric order", () => {
@@ -22,5 +24,6 @@ describe("Segment pad draft", () => {
     expect(segmentNameFromDraft({ kind: "sector", ring: "D", number: 16 })).toBe("D16");
     expect(segmentNameFromDraft({ kind: "sector", ring: "T", number: 5 })).toBe("T5");
     expect(segmentNameFromDraft({ kind: "bull", segmentName: "Bull" })).toBe("Bull");
+    expect(segmentNameFromDraft({ kind: "none" })).toBe("Miss");
   });
 });

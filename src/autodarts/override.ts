@@ -30,6 +30,16 @@ function hitFromSegmentName(segmentName: string, previous: Hit): Hit {
       coordsY: previous.coordsY,
     };
   }
+  if (segmentName === "Miss") {
+    return {
+      segmentName: "Miss",
+      segmentNumber: 0,
+      multiplier: 0,
+      bed: "Outside",
+      coordsX: null,
+      coordsY: null,
+    };
+  }
   const match = /^([SDTM])(\d{1,2})$/.exec(segmentName);
   if (!match) {
     return { ...previous, segmentName };
@@ -52,7 +62,9 @@ function hitFromSegmentName(segmentName: string, previous: Hit): Hit {
 /** Resolve a Manual Override into a Hit without calling Autodarts. */
 export function resolveLocalOverride(body: OverrideBody, previous: Hit): Hit | null {
   if ("segmentName" in body) {
-    return hitFromSegmentName(body.segmentName, previous);
+    const segmentName = canonicalSegment(body.segmentName);
+    if (!segmentName) return null;
+    return hitFromSegmentName(segmentName, previous);
   }
   return pointMmToHit(body.xMm, body.yMm);
 }

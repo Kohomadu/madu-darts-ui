@@ -62,6 +62,13 @@ export function cannotCheckout(remaining: number, dartsLeft: number): boolean {
  * Segments still to throw. A chart finish that fits in the open darts wins.
  * Two darts left use the 2-dart chart. Above a finish, score toward the next one.
  */
+/** Play shows this only when the open darts can finish. A scoring visit stays blank. */
+export function finishRoute(remaining: number, slots: number): string[] {
+  const open = Math.min(Math.max(slots, 0), 3);
+  if (open < 1 || cannotCheckout(remaining, open)) return [];
+  return checkoutRoute(remaining, open);
+}
+
 export function checkoutRoute(remaining: number, slots: number): string[] {
   if (slots <= 0 || remaining <= 1) return [];
   const open = Math.min(slots, 3);

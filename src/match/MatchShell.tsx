@@ -13,7 +13,7 @@ import type { Hit } from "../autodarts/parse";
 import { useAutodarts } from "../autodarts/useAutodarts";
 import type { ConnectionPhase } from "../autodarts/view";
 import { Board } from "../board/Board";
-import { checkoutRoute, openRouteSlots } from "../game/checkout";
+import { finishRoute, openRouteSlots } from "../game/checkout";
 import { scoreSegment, type DartSnap } from "../game/rules";
 import { SegmentPad } from "../override/SegmentPad";
 import { presenceLabel, recoveryCopy, shellPresence } from "../shell/presence";
@@ -86,7 +86,7 @@ export function MatchShell({
         : 501;
   const route =
     match.phase === "leg"
-      ? checkoutRoute(
+      ? finishRoute(
           throwerRemaining,
           openRouteSlots({
             busted: match.busted,

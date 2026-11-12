@@ -393,10 +393,18 @@ button.cta {
   line-height: 1.1;
 }
 
-.pad-rings button small {
+.pad-rings button small,
+.pad-bulls button.stacked small {
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
+}
+
+.pad-bulls button.stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
 }
 
 .pad-numbers button.selected,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scoreSegment } from "./rules";
-import { cannotCheckout, checkoutRoute, openRouteSlots, shownRemaining } from "./checkout";
+import { cannotCheckout, checkoutRoute, finishRoute, openRouteSlots, shownRemaining } from "./checkout";
 
 const BOGEYS = new Set([159, 162, 163, 165, 166, 168, 169]);
 
@@ -47,6 +47,14 @@ describe("Checkout Route", () => {
 
   it("scores on treble 20 from 501, and does not bust a score just above 170", () => {
     expect(checkoutRoute(501, 3)).toEqual(["T20", "T20", "T20"]);
+    expect(finishRoute(501, 3)).toEqual([]);
+    expect(finishRoute(180, 3)).toEqual([]);
+    expect(finishRoute(159, 3)).toEqual([]);
+    expect(finishRoute(121, 1)).toEqual([]);
+    expect(finishRoute(100, 1)).toEqual([]);
+    expect(finishRoute(170, 3)).toEqual(["T20", "T20", "Bull"]);
+    expect(finishRoute(40, 1)).toEqual(["D20"]);
+    expect(finishRoute(100, 3)).toEqual(checkoutRoute(100, 3));
     const from180 = checkoutRoute(180, 3);
     expect(sum(from180)).toBeLessThan(180);
     expect(180 - sum(from180)).not.toBe(1);

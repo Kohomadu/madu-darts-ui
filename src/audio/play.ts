@@ -7,10 +7,8 @@ const sources: Record<Cue, string> = {
   "orchestral-win": "/audio/orchestral-win.mp3",
   fatality: "/audio/fatality.m4a",
   "level-win": "/audio/level-win.mp3",
-  "epic-fail": "/audio/epic-fail.mp3",
   "failure-trumpet": "/audio/failure-trumpet.mp3",
   "next-level": "/audio/next-level.mp3",
-  "oni-chan-baka": "/audio/oni-chan-baka.mp3",
 };
 
 let armed = false;

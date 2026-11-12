@@ -313,7 +313,11 @@ export function PracticeShell({ onHome }: { onHome: () => void }) {
             ) : null}
           </p>
         ) : null}
-        {game.phase !== "idle" ? <p className="secondary">{formatHighScore(game.highScore)}</p> : null}
+        {game.phase !== "idle" ? (
+          <p className="secondary">
+            {countLabel(game.thrownDarts, "dart", "darts")} thrown · {formatHighScore(game.highScore)}
+          </p>
+        ) : null}
       </header>
       {presence ? (
         <p className={`presence ${presence}`} role="status">
@@ -415,12 +419,13 @@ function HitStrip({
         const hit = hits[index];
         const suggestion = hit ? null : (route[index - hits.length] ?? null);
         const segment = hit?.segmentName ?? suggestion;
+        const missed = segment === "Miss";
         const kind = hit ? "filled" : suggestion ? "route" : "empty";
         const label = (
           <>
-            <b>{segment ?? "—"}</b>
+            <b>{missed ? "0" : (segment ?? "—")}</b>
             <small>
-              {segment ? scoreSegment(segment).points : `Hit ${index + 1}`}
+              {missed ? "None" : segment ? scoreSegment(segment).points : `Hit ${index + 1}`}
             </small>
           </>
         );
@@ -431,7 +436,7 @@ function HitStrip({
                 type="button"
                 className="hit-button"
                 aria-pressed={selected === index}
-                aria-label={`${hit.segmentName}, Hit ${index + 1}`}
+                aria-label={`${hit.segmentName === "Miss" ? "None" : hit.segmentName}, Hit ${index + 1}`}
                 onClick={() => onSelect(index)}
               >
                 {label}

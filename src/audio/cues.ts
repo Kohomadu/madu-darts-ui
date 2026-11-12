@@ -10,10 +10,8 @@ export type Cue =
   | "orchestral-win"
   | "fatality"
   | "level-win"
-  | "epic-fail"
   | "failure-trumpet"
-  | "next-level"
-  | "oni-chan-baka";
+  | "next-level";
 
 export type OutcomeOverlay = "checkout" | "try-again";
 
@@ -113,9 +111,7 @@ export function planMoment(prev: Observation | null, next: Observation): Practic
     sealed && prev.game.phase === "playing" && next.game.phase === "playing" && next.game.target === prev.game.target + 1;
 
   if (checkout) cues.push(checkoutCue(openingScore(next.game), next.hits.length));
-  else if (busted) cues.push(openingScore(next.game) >= 61 ? "epic-fail" : "failure-trumpet");
-  else if (failed) cues.push("failure-trumpet");
-  else if (hopeless) cues.push("oni-chan-baka");
+  else if (busted || failed || hopeless) cues.push("failure-trumpet");
   if (advanced) cues.push("next-level");
   else if (sealed) cues.push("chime");
 

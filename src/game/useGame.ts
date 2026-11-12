@@ -86,6 +86,7 @@ export function useGame(view: PracticeView): GameProjection & {
   checkouts: number;
   highTarget: number;
   highScore: HighScoreRecord | null;
+  thrownDarts: number;
   moment: OutcomeMoment | null;
 } {
   const restored = useRef(readPersistedProgress(localStorage));
@@ -230,6 +231,7 @@ export function useGame(view: PracticeView): GameProjection & {
     checkouts: stats.checkouts,
     highTarget: stats.highTarget,
     highScore: state.phase === "idle" ? null : highScores[state.game],
+    thrownDarts: sessionDarts.current,
     moment,
     sealedVisit,
     restoreVisit(visit) {

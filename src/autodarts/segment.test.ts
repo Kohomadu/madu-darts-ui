@@ -19,6 +19,8 @@ describe("Segment names", () => {
     expect(canonicalSegment("bull")).toBe("Bull");
     expect(canonicalSegment("25")).toBe("25");
     expect(canonicalSegment("M20")).toBe("M20");
+    expect(canonicalSegment("0")).toBe("Miss");
+    expect(canonicalSegment("none")).toBe("Miss");
   });
 
   it("rejects a number that is not on the Board", () => {
@@ -32,6 +34,14 @@ describe("Segment names", () => {
 describe("local Manual Override", () => {
   it("builds a Segment override without calling Autodarts", () => {
     expect(segmentOverride("t20")).toEqual({ segmentName: "T20" });
+    expect(resolveLocalOverride({ segmentName: "0" }, previous)).toMatchObject({
+      segmentName: "Miss",
+      segmentNumber: 0,
+      multiplier: 0,
+      bed: "Outside",
+      coordsX: null,
+      coordsY: null,
+    });
     expect(resolveLocalOverride({ segmentName: "T20" }, previous)).toMatchObject({
       segmentName: "T20",
       segmentNumber: 20,
