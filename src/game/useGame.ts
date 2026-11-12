@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Hit } from "../autodarts/parse";
 import type { PracticeView } from "../autodarts/view";
 import { emitPracticeCues, outcomeOverlay } from "../audio/emit";
+import { addProfileDartsThrown, observeThrownDarts, type DartWatch } from "../home/profileDarts";
+import { readProfileName } from "../home/profile";
 import {
   beatHighScore,
   readHighScore,
@@ -115,6 +117,7 @@ export function useGame(view: PracticeView): GameProjection & {
   const forceSync = useRef(false);
   /** Hits thrown since Start for this Training Game run (for High Score competition). */
   const sessionDarts = useRef(restored.current.active?.sessionDarts ?? 0);
+  const dartWatch = useRef<DartWatch>({ seen: null });
   const [syncTick, setSyncTick] = useState(0);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -191,6 +194,12 @@ export function useGame(view: PracticeView): GameProjection & {
     const previousView = decision.skipped ? { ...view, hits: [] } : prevView.current;
     const prevHits = previousView?.hits ?? [];
     const connected = isConnected(view);
+    const added = observeThrownDarts(dartWatch.current, {
+      hits: view.hits.length,
+      replay: skipBaseline || decision.skipped,
+      yours: true,
+    });
+    if (added > 0) addProfileDartsThrown(localStorage, readProfileName(localStorage), added);
 
     if (!skipBaseline && prevGame.phase === "playing") {
       sessionDarts.current += newThrownDarts(prevHits.length, view.hits.length);

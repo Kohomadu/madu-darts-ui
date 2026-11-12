@@ -569,6 +569,34 @@ button.cta {
   font-size: 16px;
 }
 
+.profile-stats {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.profile-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-stats dt {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.profile-stats dd {
+  margin: 0;
+  font-size: clamp(40px, 9vw, 64px);
+  font-weight: 760;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
 .match-setup,
 .match-results {
   width: min(720px, 100%);

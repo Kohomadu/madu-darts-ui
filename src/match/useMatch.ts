@@ -4,6 +4,8 @@ import type { PracticeView } from "../autodarts/view";
 import { installAudioUnlock, playCues } from "../audio/play";
 import { canUndoTurn } from "../game/useGame";
 import { decideScoreSync } from "../game/scoreSync";
+import { addProfileDartsThrown, observeThrownDarts, type DartWatch } from "../home/profileDarts";
+import { readProfileName } from "../home/profile";
 import type { DartSnap } from "../game/rules";
 import { botTurnKey, isBotThrowing, planCurrentBotVisit } from "./botClock";
 import { emitMatchCues, type MatchOutcome } from "./cues";
@@ -22,6 +24,12 @@ function stripKey(view: PracticeView): string {
 
 function isConnected(view: PracticeView): boolean {
   return view.phase === "live" || view.phase === "polling";
+}
+
+function youAreThrowing(state: MatchState): boolean {
+  if (state.phase === "leg") return state.leg?.thrower === "you";
+  if (state.phase === "bull-off") return state.bullOff?.thrower === "you";
+  return false;
 }
 
 function isTakeout(view: PracticeView): boolean {
@@ -60,11 +68,17 @@ export function useMatch(
   const skipping = useRef(false);
   const forceSync = useRef(false);
   const frozenStrip = useRef<string | null>(null);
+  const dartWatch = useRef<DartWatch>({ seen: null });
   const [syncTick, setSyncTick] = useState(0);
   const botKey = botTurnKey(state);
 
   function persist(next: MatchState) {
     writeParkedMatch(localStorage, next.phase === "results" ? null : next);
+  }
+
+  function recordProfileDarts(hits: number, replay: boolean, yours: boolean) {
+    const added = observeThrownDarts(dartWatch.current, { hits, replay, yours });
+    if (added > 0) addProfileDartsThrown(localStorage, readProfileName(localStorage), added);
   }
 
   function apply(next: MatchState) {
@@ -94,15 +108,19 @@ export function useMatch(
     restoring.current = false;
     const prevGame = stateRef.current;
     if (isBotThrowing(prevGame)) {
+      recordProfileDarts(view.hits.length, false, false);
       frozenStrip.current = stripKey(view);
       prevView.current = view;
       return;
     }
     if (frozenStrip.current && stripKey(view) === frozenStrip.current) {
+      recordProfileDarts(view.hits.length, true, false);
       prevView.current = view;
       return;
     }
     frozenStrip.current = null;
+
+    recordProfileDarts(view.hits.length, skipBaseline || decision.skipped, youAreThrowing(prevGame));
 
     const previousView = decision.skipped ? { ...view, hits: [] } : prevView.current;
     const prevHits = previousView?.hits ?? [];

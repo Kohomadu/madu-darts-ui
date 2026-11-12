@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { HomeChooser, type HomeTile } from "./home/HomeChooser";
 import { NextScreen } from "./home/NextScreen";
+import { ProfileScreen } from "./home/ProfileScreen";
 import { readProfileName } from "./home/profile";
 import { MatchSetupScreen } from "./match/MatchSetupScreen";
 import { createMatch, MatchShell } from "./match/MatchShell";
@@ -84,14 +85,7 @@ export function App() {
   }
 
   if (screen === "profile") {
-    return (
-      <NextScreen
-        title="Profile"
-        message={profileName}
-        detail="Further profiles are next."
-        onHome={goHome}
-      />
-    );
+    return <ProfileScreen name={profileName} onHome={goHome} />;
   }
 
   return (
